@@ -37,6 +37,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health/db")
+def health_db():
+    import traceback
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        return {"status": "error", "message": "DATABASE_URL environment variable is missing"}
+    
+    # Obfuscate password for safe display
+    safe_url = db_url.replace(db_url.split('@')[0].split(':')[-1], "*****") if '@' in db_url else "Invalid URL Format"
+    
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor, connect_timeout=5)
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        conn.close()
+        return {"status": "success", "message": "Successfully connected to database", "url": safe_url}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc(), "url": safe_url}
+
 @app.get("/problems")
 def list_problems():
     return [{"id": p["id"], "title": p["title"], "difficulty": p["difficulty"], "tags": p.get("tags", [])} for p in get_all_problems()]
