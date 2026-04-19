@@ -8,6 +8,7 @@ def get_db_connection():
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         return None
+    db_url = db_url.strip()
     try:
         conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
         conn.autocommit = True

@@ -44,6 +44,8 @@ def health_db():
     if not db_url:
         return {"status": "error", "message": "DATABASE_URL environment variable is missing"}
     
+    db_url = db_url.strip()
+    
     # Obfuscate password for safe display
     safe_url = db_url.replace(db_url.split('@')[0].split(':')[-1], "*****") if '@' in db_url else "Invalid URL Format"
     
