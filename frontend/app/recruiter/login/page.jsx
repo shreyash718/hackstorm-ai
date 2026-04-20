@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { API_URL } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, CheckCircle2, Search, Code2, Sparkles, UserCheck } from 'lucide-react';
@@ -153,7 +154,7 @@ export default function RecruiterLoginPage() {
         if (error) throw error;
         
         if (data?.user?.id) {
-          await fetch('http://localhost:8000/recruiter/make', {
+          await fetch(`${API_URL}/recruiter/make`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: data.user.id })
@@ -166,7 +167,7 @@ export default function RecruiterLoginPage() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
-        const res = await fetch(`http://localhost:8000/recruiter/check/${data.user.id}`);
+        const res = await fetch(`${API_URL}/recruiter/check/${data.user.id}`);
         const checkData = await res.json();
         
         if (!checkData.is_recruiter) {

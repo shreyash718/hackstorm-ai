@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { API_URL } from '@/lib/api';
 
 import { motion } from 'framer-motion';
 
@@ -18,7 +19,7 @@ export default function AssessmentEntryPage() {
   useEffect(() => {
     const fetchAssessment = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/assessment/${params.id}`);
+        const res = await fetch(`${API_URL}/assessment/${params.id}`);
         if (!res.ok) throw new Error("Assessment not found or invalid link.");
         const data = await res.json();
         setAssessment(data);
