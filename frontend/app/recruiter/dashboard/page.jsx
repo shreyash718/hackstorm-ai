@@ -39,18 +39,6 @@ export default function RecruiterDashboard() {
       setUser(session.user);
 
       try {
-        // Ensure user is registered as recruiter (handles Google OAuth users)
-        const checkRes = await fetch(`http://localhost:8000/recruiter/check/${session.user.id}`);
-        const checkData = await checkRes.json();
-        
-        if (!checkData.is_recruiter) {
-          await fetch('http://localhost:8000/recruiter/make', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: session.user.id })
-          });
-        }
-
         const res = await fetch(`http://localhost:8000/recruiter/assessments/${session.user.id}`);
         if (!res.ok) {
             if(res.status === 403) throw new Error("Not authorized as recruiter.");
