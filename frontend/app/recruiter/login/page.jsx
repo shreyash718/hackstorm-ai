@@ -191,8 +191,7 @@ export default function RecruiterLoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // It redirects directly back to dashboard, where the recruiter check happens
-          redirectTo: `${window.location.origin}/recruiter/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/recruiter/dashboard`,
         }
       });
       if (error) throw error;
