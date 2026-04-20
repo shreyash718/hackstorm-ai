@@ -47,10 +47,26 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       setLoadingAuth(false);
+      
+      // Handle fallback redirects if Supabase ignores the redirectTo param
+      if (session?.user) {
+        const redirectPath = localStorage.getItem('redirectAfterAuth');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterAuth');
+          router.push(redirectPath);
+        }
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
+      if (session?.user) {
+        const redirectPath = localStorage.getItem('redirectAfterAuth');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterAuth');
+          router.push(redirectPath);
+        }
+      }
     });
 
     fetchProblems()

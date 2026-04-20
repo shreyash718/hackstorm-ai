@@ -188,6 +188,10 @@ export default function RecruiterLoginPage() {
 
   const handleGoogleAuth = async () => {
     try {
+      // Fallback: If Supabase dashboard doesn't have the callback URL whitelisted, 
+      // it will redirect to the home page. We store the intended destination here.
+      localStorage.setItem('redirectAfterAuth', '/recruiter/dashboard');
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
