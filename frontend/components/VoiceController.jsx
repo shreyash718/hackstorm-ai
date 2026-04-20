@@ -1,35 +1,52 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Square, Send } from 'lucide-react';
+import { Mic, MicOff, Square, Send } from 'lucide-react';
 
 export default function VoiceController({ onSendMessage, isSpeaking, loading, voiceMode }) {
   const [listening, setListening] = useState(false);
   const [input, setInput] = useState('');
   const recogRef = useRef(null);
-
-  const stopListening = useCallback(() => {
-    if (recogRef.current) {
-      recogRef.current.stop();
-    }
-    setListening(false);
-  }, []);
-
   const silenceTimerRef = useRef(null);
   const inputRef = useRef('');
+  const shouldRestartRef = useRef(false);
 
   useEffect(() => {
     inputRef.current = input;
   }, [input]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      shouldRestartRef.current = false;
+      if (recogRef.current) {
+        try { recogRef.current.abort(); } catch (e) {}
+        recogRef.current = null;
+      }
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    };
+  }, []);
+
   const handleSubmit = useCallback((textOverride) => {
     const text = textOverride !== undefined ? textOverride : inputRef.current;
-    if (!text.trim() || loading || isSpeaking) return;
-    
+    if (!text.trim() || loading) return;
+
+    // Stop listening before sending
+    shouldRestartRef.current = false;
+    if (recogRef.current) {
+      try { recogRef.current.abort(); } catch (e) {}
+      recogRef.current = null;
+    }
+    setListening(false);
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
     onSendMessage(text);
     setInput('');
     inputRef.current = '';
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-  }, [loading, isSpeaking, onSendMessage]);
+  }, [loading, onSendMessage]);
 
   const resetSilenceTimer = useCallback((currentTranscript) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -37,45 +54,130 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       if (currentTranscript.trim()) {
         handleSubmit(currentTranscript);
       }
-    }, 1500); // 1.5s of silence
+    }, 2000); // 2s of silence before auto-submit
   }, [handleSubmit]);
+
+  const stopListening = useCallback(() => {
+    shouldRestartRef.current = false;
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (recogRef.current) {
+      try { recogRef.current.abort(); } catch (e) {}
+      recogRef.current = null;
+    }
+    setListening(false);
+  }, []);
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      alert("Speech recognition not supported in this browser.");
+      alert("Speech recognition is not supported in this browser. Please use Chrome.");
       return;
     }
+
+    // Cancel any ongoing TTS so we can listen
     window.speechSynthesis.cancel();
-    
+
+    // Clean up any existing recognition
+    if (recogRef.current) {
+      try { recogRef.current.abort(); } catch (e) {}
+      recogRef.current = null;
+    }
+
     const r = new SR();
     r.lang = 'en-US';
     r.continuous = true;
     r.interimResults = true;
-    
+
+    r.onstart = () => {
+      console.log('[Voice] Recognition started');
+      setListening(true);
+    };
+
     r.onresult = (e) => {
-      let currentTranscript = '';
+      let finalTranscript = '';
+      let interimTranscript = '';
+
       for (let i = 0; i < e.results.length; ++i) {
-        currentTranscript += e.results[i][0].transcript;
+        const result = e.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
       }
-      
-      if (currentTranscript.trim() !== inputRef.current) {
-        setInput(currentTranscript);
-        resetSilenceTimer(currentTranscript);
+
+      const fullTranscript = (finalTranscript + interimTranscript).trim();
+      if (fullTranscript && fullTranscript !== inputRef.current) {
+        setInput(fullTranscript);
+        resetSilenceTimer(fullTranscript);
       }
     };
-    
-    r.onend = () => setListening(false);
-    r.onerror = () => setListening(false);
+
+    r.onerror = (e) => {
+      console.log('[Voice] Recognition error:', e.error);
+      // "no-speech" and "aborted" are common and not real errors
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      // For actual errors, stop
+      shouldRestartRef.current = false;
+      setListening(false);
+      recogRef.current = null;
+    };
+
+    r.onend = () => {
+      console.log('[Voice] Recognition ended, shouldRestart:', shouldRestartRef.current);
+      // Chrome kills continuous recognition periodically - restart if we want to keep listening
+      if (shouldRestartRef.current) {
+        try {
+          const newR = new SR();
+          newR.lang = 'en-US';
+          newR.continuous = true;
+          newR.interimResults = true;
+          newR.onstart = r.onstart;
+          newR.onresult = r.onresult;
+          newR.onerror = r.onerror;
+          newR.onend = r.onend;
+          recogRef.current = newR;
+          newR.start();
+          console.log('[Voice] Recognition restarted');
+        } catch (e) {
+          console.log('[Voice] Failed to restart:', e);
+          shouldRestartRef.current = false;
+          setListening(false);
+          recogRef.current = null;
+        }
+      } else {
+        setListening(false);
+        recogRef.current = null;
+      }
+    };
 
     recogRef.current = r;
-    r.start();
-    setListening(true);
+    shouldRestartRef.current = true;
+
+    try {
+      r.start();
+    } catch (e) {
+      console.error('[Voice] Failed to start recognition:', e);
+      shouldRestartRef.current = false;
+      setListening(false);
+      recogRef.current = null;
+    }
   }, [resetSilenceTimer]);
 
+  // Stop listening when loading starts (message is being sent)
+  useEffect(() => {
+    if (loading && listening) {
+      stopListening();
+    }
+  }, [loading, listening, stopListening]);
+
+  // Handle Enter key for text mode
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || voiceMode)) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         if (inputRef.current.trim() && !loading && !isSpeaking) {
           e.preventDefault();
           handleSubmit();
@@ -84,49 +186,66 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [voiceMode, loading, isSpeaking, handleSubmit]);
+  }, [loading, isSpeaking, handleSubmit]);
 
-  useEffect(() => {
-    if (listening && input && !recogRef.current) {
-      handleSubmit();
-    }
-  }, [listening]);
+  const micDisabled = loading || isSpeaking;
 
   return (
     <div className="flex flex-col border-t border-[#1e293b] bg-[#0a0e1a] p-4 flex-shrink-0 font-mono">
       {voiceMode ? (
         <div className="flex flex-col items-center gap-3">
+          {/* Main Mic Button */}
           <button
-            onClick={listening ? stopListening : handleSubmit}
-            disabled={loading || isSpeaking || (!listening && !input.trim())}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+            onClick={() => {
+              if (listening) {
+                // If there's transcript, submit it; otherwise just stop
+                if (inputRef.current.trim()) {
+                  handleSubmit();
+                } else {
+                  stopListening();
+                }
+              } else {
+                startListening();
+              }
+            }}
+            disabled={micDisabled}
+            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
               listening
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                : input.trim()
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-slate-800 text-slate-400'
-            } ${(loading || isSpeaking) && 'opacity-50 cursor-not-allowed'}`}
+                ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30 animate-pulse'
+                : micDisabled
+                ? 'bg-slate-800 text-slate-600 opacity-50 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+            }`}
           >
-            {listening ? <Square size={20} className="text-white fill-current" /> : <Send size={20} className={input.trim() ? "text-white" : ""} />}
+            {listening ? (
+              <Square size={20} className="text-white fill-current" />
+            ) : (
+              <Mic size={22} className="text-white" />
+            )}
           </button>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={listening ? stopListening : startListening}
-              disabled={loading || isSpeaking}
-              className={`p-3 rounded-full ${listening ? 'bg-red-900/50 text-red-400' : 'bg-slate-800 hover:bg-slate-700 text-blue-400'} transition-colors`}
-            >
-              <Mic size={18} />
-            </button>
-            <span className="text-xs text-slate-500 tracking-wider">
-              {listening ? 'LISTENING...' : 'TAP MIC TO SPEAK'}
-            </span>
-          </div>
 
+          {/* Status text */}
+          <span className={`text-xs tracking-wider ${
+            listening ? 'text-red-400 animate-pulse' : micDisabled ? 'text-slate-600' : 'text-slate-500'
+          }`}>
+            {loading ? 'PROCESSING...' : isSpeaking ? 'AI IS SPEAKING...' : listening ? 'LISTENING... (tap to send)' : 'TAP MIC TO SPEAK'}
+          </span>
+
+          {/* Show transcript preview */}
           {input && (
-            <div className="w-full mt-2 p-3 bg-slate-900/50 border border-slate-800 rounded text-slate-300 text-sm italic">
+            <div className="w-full mt-1 p-3 bg-slate-900/50 border border-slate-800 rounded text-slate-300 text-sm italic">
               "{input}"
             </div>
+          )}
+
+          {/* Send button appears when there's text but not listening */}
+          {input.trim() && !listening && !loading && (
+            <button
+              onClick={() => handleSubmit()}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            >
+              SEND <Send size={14} />
+            </button>
           )}
         </div>
       ) : (
@@ -146,7 +265,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
             disabled={loading || isSpeaking}
           />
           <button
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={loading || !input.trim() || isSpeaking}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 disabled:text-slate-500 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
           >
