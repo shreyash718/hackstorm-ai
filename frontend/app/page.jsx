@@ -141,10 +141,18 @@ export default function Home() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => router.push('/login')} 
+              onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'} 
               className="text-sm font-medium text-secondary hover:text-primary transition-colors"
             >
-              Sign In
+              For Recruiters
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => router.push('/login')} 
+              className="text-sm font-medium bg-primary text-background px-5 py-2 rounded-lg hover:opacity-90 transition-all"
+            >
+              Student Sign In
             </motion.button>
           </div>
         </motion.nav>
@@ -185,17 +193,26 @@ export default function Home() {
                 onClick={() => router.push('/login')} 
                 className="group relative flex items-center justify-center gap-2 bg-primary text-background font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-colors"
               >
-                Start Interviewing <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowRight size={20} /></motion.div>
+                I'm a Student <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowRight size={20} /></motion.div>
               </motion.button>
               <motion.button 
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(139,92,246,0.4)" }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center justify-center gap-2 bg-surface hover:bg-muted border border-muted text-primary font-medium text-lg px-8 py-4 rounded-xl transition-colors"
+                onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-colors"
               >
-                See how it works
+                I'm a Recruiter <ArrowRight size={20} />
               </motion.button>
             </motion.div>
+            <motion.button 
+              variants={fadeUpVariant}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
+              className="mt-4 flex items-center justify-center gap-2 text-secondary hover:text-primary font-medium text-sm transition-colors"
+            >
+              See how it works ↓
+            </motion.button>
           </motion.div>
 
           {/* The Problem vs Solution Section */}
@@ -349,14 +366,24 @@ export default function Home() {
               className="text-center mt-12"
             >
               <h3 className="text-2xl font-bold mb-6">Ready to stop grinding and start talking?</h3>
-              <motion.button 
-                whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(59,130,246,0.5)" }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/login')} 
-                className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.4)] transition-colors"
-              >
-                Create Free Account
-              </motion.button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <motion.button 
+                  whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(59,130,246,0.5)" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push('/login')} 
+                  className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.4)] transition-colors"
+                >
+                  Student Sign Up
+                </motion.button>
+                <motion.button 
+                  whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(139,92,246,0.4)" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-colors"
+                >
+                  Recruiter Access
+                </motion.button>
+              </div>
             </motion.div>
 
           </div>
