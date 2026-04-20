@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     chat_history: List[ChatMessage]
     candidate_message: str
     user_id: Optional[str] = None
+    stream: Optional[bool] = False
 
 class ChatResponse(BaseModel):
     reply: str

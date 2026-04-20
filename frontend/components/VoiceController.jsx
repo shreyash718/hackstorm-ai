@@ -14,55 +14,79 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     setListening(false);
   }, []);
 
+  const silenceTimerRef = useRef(null);
+  const inputRef = useRef('');
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
+  const handleSubmit = useCallback((textOverride) => {
+    const text = textOverride !== undefined ? textOverride : inputRef.current;
+    if (!text.trim() || loading || isSpeaking) return;
+    
+    onSendMessage(text);
+    setInput('');
+    inputRef.current = '';
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+  }, [loading, isSpeaking, onSendMessage]);
+
+  const resetSilenceTimer = useCallback((currentTranscript) => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = setTimeout(() => {
+      if (currentTranscript.trim()) {
+        handleSubmit(currentTranscript);
+      }
+    }, 1500); // 1.5s of silence
+  }, [handleSubmit]);
+
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      alert("Speech recognition not supported in this browser. Please use Chrome or Edge.");
+      alert("Speech recognition not supported in this browser.");
       return;
     }
     window.speechSynthesis.cancel();
     
     const r = new SR();
     r.lang = 'en-US';
-    r.continuous = false;
+    r.continuous = true;
     r.interimResults = true;
     
     r.onresult = (e) => {
       let finalTranscript = '';
-      let interimTranscript = '';
       for (let i = e.resultIndex; i < e.results.length; ++i) {
         if (e.results[i].isFinal) {
           finalTranscript += e.results[i][0].transcript;
-        } else {
-          interimTranscript += e.results[i][0].transcript;
         }
       }
       if (finalTranscript) {
-        setInput(finalTranscript);
+        const fullText = inputRef.current + " " + finalTranscript;
+        setInput(fullText.trim());
+        resetSilenceTimer(fullText.trim());
       }
     };
     
-    r.onend = () => {
-      setListening(false);
-      // We will rely on user explicitly submitting or we can auto-submit.
-      // Auto-submit if we have input
-    };
-    
-    r.onerror = () => {
-      setListening(false);
-    };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
 
     recogRef.current = r;
     r.start();
     setListening(true);
-  }, []);
+  }, [resetSilenceTimer]);
 
-  const handleSubmit = () => {
-    if (!input.trim() || loading || isSpeaking) return;
-    if (listening) stopListening();
-    onSendMessage(input);
-    setInput('');
-  };
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || voiceMode)) {
+        if (inputRef.current.trim() && !loading && !isSpeaking) {
+          e.preventDefault();
+          handleSubmit();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [voiceMode, loading, isSpeaking, handleSubmit]);
 
   useEffect(() => {
     if (listening && input && !recogRef.current) {

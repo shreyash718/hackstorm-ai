@@ -29,6 +29,17 @@ export const sendChatMessage = async (data) => {
   return response.data;
 };
 
+export const streamChatMessage = async (data) => {
+  const response = await fetch(`${API_URL}/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ...data, stream: true }),
+  });
+  return response;
+};
+
 export const evaluateInterview = async (data) => {
   const response = await api.post('/evaluate', data);
   return response.data;

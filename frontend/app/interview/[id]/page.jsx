@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchProblem, sendChatMessage, evaluateInterview } from '@/lib/api';
+import { fetchProblem, sendChatMessage, streamChatMessage, evaluateInterview } from '@/lib/api';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { supabase } from '@/lib/supabase';
 import CodeEditor from '@/components/CodeEditor';
@@ -24,7 +24,6 @@ const STARTER_CODE = {
 };
 
 function speak(text, onEnd) {
-  window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   
   const voices = window.speechSynthesis.getVoices();
@@ -100,13 +99,17 @@ export default function InterviewScreen() {
   const handleSendMessage = async (text) => {
     if (!text.trim() || loading) return;
     
+    // Interrupt AI if it's speaking
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+
     const userMsg = { role: 'user', content: text };
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setLoading(true);
 
     try {
-      const res = await sendChatMessage({
+      const response = await streamChatMessage({
         problem_id: problemId,
         code,
         chat_history: newHistory,
@@ -114,20 +117,89 @@ export default function InterviewScreen() {
         user_id: user?.id
       });
 
-      const assistantMsg = { role: 'assistant', content: res.reply };
-      setMessages([...newHistory, assistantMsg]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       
-      if (res.is_complete) {
-        handleEndInterview([...newHistory, assistantMsg]);
-        return;
+      let assistantContent = '';
+      let spokenContent = '';
+      let isComplete = false;
+
+      // Add a placeholder message for the assistant
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.text) {
+                assistantContent += data.text;
+                
+                // Update the last message
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1].content = assistantContent;
+                  return updated;
+                });
+
+                // Incremental TTS: Speak finished sentences
+                if (voiceMode) {
+                  const currentText = assistantContent.slice(spokenContent.length);
+                  // Look for sentence terminators or natural pauses
+                  if (/[.!?](\s|$)/.test(currentText) || (currentText.length > 60 && /\s$/.test(currentText))) {
+                    const toSpeak = currentText.trim();
+                    if (toSpeak) {
+                      setIsSpeaking(true);
+                      speak(toSpeak, () => {
+                        // isSpeaking will be handled at the end
+                      });
+                      spokenContent = assistantContent;
+                    }
+                  }
+                }
+              }
+              if (data.is_complete !== undefined) {
+                isComplete = data.is_complete;
+              }
+            } catch (e) {
+              // Ignore parse errors for incomplete chunks
+            }
+          }
+        }
       }
 
-      if (voiceMode) {
-        setIsSpeaking(true);
-        speak(res.reply, () => setIsSpeaking(false));
+      // Final speak for any remaining text
+      if (voiceMode && assistantContent.length > spokenContent.length) {
+        const toSpeak = assistantContent.slice(spokenContent.length).trim();
+        if (toSpeak) {
+          setIsSpeaking(true);
+          speak(toSpeak, () => setIsSpeaking(false));
+        } else {
+          setIsSpeaking(false);
+        }
+      } else if (voiceMode) {
+        // Wait for all utterances to finish
+        const checkDone = setInterval(() => {
+          if (!window.speechSynthesis.speaking) {
+            setIsSpeaking(false);
+            clearInterval(checkDone);
+          }
+        }, 100);
       }
+
+      if (isComplete) {
+        handleEndInterview([...newHistory, { role: 'assistant', content: assistantContent }]);
+      }
+
     } catch (e) {
-      setMessages([...newHistory, { role: 'assistant', content: 'Connection error. Is the backend running?' }]);
+      console.error(e);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Is the backend running?' }]);
     } finally {
       setLoading(false);
     }

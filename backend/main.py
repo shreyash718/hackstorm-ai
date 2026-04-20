@@ -6,7 +6,9 @@ import datetime
 
 from models import ChatRequest, EvaluateRequest, Session, CreateProblemRequest
 from problems import get_all_problems, get_problem
-from interviewer import build_system_prompt, call_gemini, detect_phase_transition, detect_interview_complete
+from interviewer import build_system_prompt, call_gemini, call_gemini_stream, detect_phase_transition, detect_interview_complete
+from fastapi.responses import StreamingResponse
+import json
 from evaluator import generate_report
 from database import (
     save_session, update_session, save_report, get_report, check_admin, 
@@ -110,10 +112,22 @@ async def chat(req: ChatRequest):
         problem=problem, 
         phase=current_phase, 
         code=req.code, 
-        history="\\n".join([f"{'Candidate' if m['role']=='user' else 'Interviewer'}: {m['content']}" for m in history])
+        history="\n".join([f"{'Candidate' if m['role']=='user' else 'Interviewer'}: {m['content']}" for m in history])
     )
     
-    # Call Gemini
+    if req.stream:
+        async def stream_generator():
+            full_response = ""
+            for chunk in call_gemini_stream(system_prompt, req.candidate_message):
+                full_response += chunk
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+            
+            is_complete = detect_interview_complete(full_response)
+            yield f"data: {json.dumps({'is_complete': is_complete})}\n\n"
+            
+        return StreamingResponse(stream_generator(), media_type="text/event-stream")
+
+    # Call Gemini (non-streaming fallback)
     reply = call_gemini(system_prompt, req.candidate_message)
     
     is_complete = detect_interview_complete(reply)

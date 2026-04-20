@@ -43,10 +43,18 @@ CONVERSATION SO FAR:
 
 def call_gemini(system_prompt: str, user_message: str) -> str:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
     response = model.generate_content(prompt)
     return response.text.strip()
+
+def call_gemini_stream(system_prompt: str, user_message: str):
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
+    response = model.generate_content(prompt, stream=True)
+    for chunk in response:
+        yield chunk.text
 
 def detect_phase_transition(history: List[Dict[str, str]], current_phase: str) -> str:
     # A simple state machine logic to advance phases based on message count or keywords
