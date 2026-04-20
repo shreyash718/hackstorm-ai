@@ -1,20 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { API_URL } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // The Supabase client automatically handles the code exchange in the browser
-      // after the redirect, but we wait for the session to be established.
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
@@ -27,15 +25,12 @@ export default function AuthCallbackPage() {
         const next = searchParams.get('next') || '/';
         const userId = session.user.id;
 
-        // Special handling for recruiter flow
         if (next.includes('recruiter')) {
           try {
-            // Check if user is already a recruiter in our backend
             const res = await fetch(`${API_URL}/recruiter/check/${userId}`);
             const checkData = await res.json();
 
             if (!checkData.is_recruiter) {
-              // Automatically promote to recruiter if coming from recruiter flow
               await fetch(`${API_URL}/recruiter/make`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -47,11 +42,8 @@ export default function AuthCallbackPage() {
           }
         }
 
-        // Redirect to the intended destination
         router.push(next);
       } else {
-        // If no session is found, something went wrong or the exchange is still happening.
-        // We'll give it a moment or redirect to login.
         router.push('/login');
       }
     };
@@ -59,9 +51,12 @@ export default function AuthCallbackPage() {
     handleAuthCallback();
   }, [router, searchParams]);
 
+  return <AuthCallbackLoading />;
+}
+
+function AuthCallbackLoading() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-300">
-      {/* Background Decor */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] rounded-full pointer-events-none" />
 
@@ -95,5 +90,13 @@ export default function AuthCallbackPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<AuthCallbackLoading />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
