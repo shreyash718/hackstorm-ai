@@ -245,16 +245,20 @@ export default function InterviewScreen() {
   if (!problem) return <div className="min-h-screen bg-background text-primary flex items-center justify-center">Loading...</div>;
 
   return (
-    <div className="h-screen flex flex-col bg-background text-primary font-mono overflow-hidden transition-colors duration-300">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-[#030712] text-gray-900 dark:text-gray-100 font-mono overflow-hidden transition-colors duration-300">
       {/* Topbar */}
-      <div className="h-14 bg-surface border-b border-muted px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+      <div className="h-14 bg-white dark:bg-[#0f172a] border-b border-gray-200 dark:border-[#1e293b] px-6 flex items-center justify-between shrink-0 shadow-sm dark:shadow-none z-10 transition-colors">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="text-secondary hover:text-primary text-sm transition-colors">
+          <button onClick={() => router.push('/')} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm transition-colors">
             ← back
           </button>
-          <div className="h-4 w-px bg-muted" />
-          <span className="text-primary text-sm font-semibold">{problem.title}</span>
-          <span className="text-[10px] tracking-widest font-bold px-2 py-0.5 rounded border border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400">
+          <div className="h-4 w-px bg-gray-200 dark:bg-[#1e293b]" />
+          <span className="text-gray-900 dark:text-white text-sm font-semibold">{problem.title}</span>
+          <span className={`text-[10px] tracking-widest font-bold px-2 py-0.5 rounded border ${
+            problem.difficulty === 'Easy' ? 'border-green-400/50 dark:border-green-500/50 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
+            problem.difficulty === 'Medium' ? 'border-yellow-400/50 dark:border-yellow-500/50 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' :
+            'border-red-400/50 dark:border-red-500/50 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400'
+          }`}>
             {problem.difficulty.toUpperCase()}
           </span>
         </div>
@@ -265,13 +269,13 @@ export default function InterviewScreen() {
               if (voiceMode) window.speechSynthesis.cancel();
               setVoiceMode(!voiceMode);
             }}
-            className="flex items-center gap-2 bg-background border border-muted rounded-lg px-3 py-1.5 hover:bg-muted transition-colors"
+            className="flex items-center gap-2 bg-gray-100 dark:bg-[#030712] border border-gray-200 dark:border-[#1e293b] rounded-lg px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-[#1e293b] transition-colors"
           >
             <span className="text-sm">🎤</span>
-            <div className={`w-8 h-4 rounded-full relative transition-colors ${voiceMode ? 'bg-blue-600' : 'bg-muted'}`}>
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${voiceMode ? 'bg-blue-600' : 'bg-gray-300 dark:bg-[#1e293b]'}`}>
               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${voiceMode ? 'left-[18px]' : 'left-1'}`} />
             </div>
-            <span className={`text-xs font-semibold ${voiceMode ? 'text-blue-500 dark:text-blue-400' : 'text-text-muted'}`}>
+            <span className={`text-xs font-semibold ${voiceMode ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
               {voiceMode ? 'VOICE ON' : 'VOICE OFF'}
             </span>
           </button>
@@ -279,7 +283,7 @@ export default function InterviewScreen() {
           <button 
             onClick={() => handleEndInterview(messages)}
             disabled={evaluating}
-            className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold tracking-widest px-4 py-2 rounded-lg transition-colors"
+            className="bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold tracking-widest px-4 py-2 rounded-lg transition-colors"
           >
             {evaluating ? 'EVALUATING...' : 'END INTERVIEW →'}
           </button>
@@ -292,20 +296,20 @@ export default function InterviewScreen() {
           
           {/* Problem Description Panel */}
           <Panel defaultSize={25} minSize={15}>
-            <div className="h-full overflow-y-auto p-6 bg-background">
-              <div className="text-[10px] tracking-[0.2em] text-secondary mb-6">PROBLEM DESCRIPTION</div>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-primary">
+            <div className="h-full overflow-y-auto p-6 bg-white dark:bg-[#030712] transition-colors">
+              <div className="text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400 mb-6 font-bold">PROBLEM DESCRIPTION</div>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
                 {problem.description.split('\\n').map((line, i) => (
-                  <p key={i} className="mb-4 text-secondary">{line}</p>
+                  <p key={i} className="mb-4 text-gray-600 dark:text-gray-400">{line}</p>
                 ))}
 
                 {problem.examples && problem.examples.length > 0 && (
                   <div className="mt-8">
-                    <h3 className="text-sm font-semibold text-primary mb-4 tracking-wider">EXAMPLES:</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 tracking-wider">EXAMPLES:</h3>
                     {problem.examples.map((ex, i) => (
-                      <div key={i} className="bg-surface border border-muted rounded-lg p-4 mb-4 font-mono text-xs">
-                        <div className="text-blue-600 dark:text-blue-400 mb-2"><span className="text-text-muted">Input:</span> {ex.input}</div>
-                        <div className="text-green-600 dark:text-green-400"><span className="text-text-muted">Output:</span> {ex.output}</div>
+                      <div key={i} className="bg-gray-50 dark:bg-[#0f172a] border border-gray-200 dark:border-[#1e293b] rounded-lg p-4 mb-4 font-mono text-xs transition-colors">
+                        <div className="text-blue-600 dark:text-blue-400 mb-2"><span className="text-gray-400 dark:text-gray-500">Input:</span> {ex.input}</div>
+                        <div className="text-green-600 dark:text-green-400"><span className="text-gray-400 dark:text-gray-500">Output:</span> {ex.output}</div>
                       </div>
                     ))}
                   </div>
@@ -313,8 +317,8 @@ export default function InterviewScreen() {
 
                 {problem.constraints && (
                   <div className="mt-8">
-                    <h3 className="text-sm font-semibold text-primary mb-3 tracking-wider">CONSTRAINTS:</h3>
-                    <ul className="list-disc list-inside text-xs text-secondary space-y-2 font-mono">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 tracking-wider">CONSTRAINTS:</h3>
+                    <ul className="list-disc list-inside text-xs text-gray-600 dark:text-gray-400 space-y-2 font-mono">
                       {problem.constraints.split('\\n').map((c, i) => (
                         <li key={i}>{c}</li>
                       ))}
@@ -325,7 +329,7 @@ export default function InterviewScreen() {
                 {problem.tags && problem.tags.length > 0 && (
                   <div className="mt-8 flex flex-wrap gap-2">
                     {problem.tags.map((tag, i) => (
-                      <span key={i} className="bg-muted text-primary text-[10px] px-2 py-1 rounded-md tracking-wider border border-muted">
+                      <span key={i} className="bg-gray-100 dark:bg-[#1e293b] text-gray-700 dark:text-gray-300 text-[10px] px-2 py-1 rounded-md tracking-wider border border-gray-200 dark:border-[#334155] font-semibold transition-colors">
                         {tag}
                       </span>
                     ))}
@@ -335,24 +339,24 @@ export default function InterviewScreen() {
             </div>
           </Panel>
 
-          <Separator className="w-1.5 bg-muted hover:bg-blue-500/50 transition-colors cursor-col-resize active:bg-blue-500 flex items-center justify-center">
-            <div className="h-8 w-0.5 bg-text-muted rounded-full" />
+          <Separator className="w-1.5 bg-gray-200 dark:bg-[#1e293b] hover:bg-blue-500/50 transition-colors cursor-col-resize active:bg-blue-500 flex items-center justify-center">
+            <div className="h-8 w-0.5 bg-gray-400 dark:bg-gray-600 rounded-full" />
           </Separator>
 
           {/* Code Editor Panel */}
           <Panel defaultSize={50} minSize={30}>
-            <div className="h-full p-4 bg-surface">
+            <div className="h-full p-4 bg-gray-100 dark:bg-[#0f172a] transition-colors">
               <CodeEditor code={code} onChange={setCode} language={language} onLanguageChange={handleLanguageChange} />
             </div>
           </Panel>
 
-          <Separator className="w-1.5 bg-muted hover:bg-blue-500/50 transition-colors cursor-col-resize active:bg-blue-500 flex items-center justify-center">
-            <div className="h-8 w-0.5 bg-text-muted rounded-full" />
+          <Separator className="w-1.5 bg-gray-200 dark:bg-[#1e293b] hover:bg-blue-500/50 transition-colors cursor-col-resize active:bg-blue-500 flex items-center justify-center">
+            <div className="h-8 w-0.5 bg-gray-400 dark:bg-gray-600 rounded-full" />
           </Separator>
 
           {/* Chat & Voice Control Panel */}
           <Panel defaultSize={25} minSize={20}>
-            <div className="h-full flex flex-col bg-background">
+            <div className="h-full flex flex-col bg-gray-50 dark:bg-[#030712] transition-colors">
               <div className="flex-1 overflow-hidden p-4 pb-0">
                 <ChatPanel messages={messages} loading={loading} />
               </div>

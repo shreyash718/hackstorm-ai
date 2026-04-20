@@ -118,9 +118,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
     r.onerror = (e) => {
       console.log('[Voice] Recognition error:', e.error);
-      // "no-speech" and "aborted" are common and not real errors
       if (e.error === 'no-speech' || e.error === 'aborted') return;
-      // For actual errors, stop
       shouldRestartRef.current = false;
       setListening(false);
       recogRef.current = null;
@@ -128,7 +126,6 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
     r.onend = () => {
       console.log('[Voice] Recognition ended, shouldRestart:', shouldRestartRef.current);
-      // Chrome kills continuous recognition periodically - restart if we want to keep listening
       if (shouldRestartRef.current) {
         try {
           const newR = new SR();
@@ -167,14 +164,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     }
   }, [resetSilenceTimer]);
 
-  // Stop listening when loading starts (message is being sent)
+  // Stop listening when loading starts
   useEffect(() => {
     if (loading && listening) {
       stopListening();
     }
   }, [loading, listening, stopListening]);
 
-  // Handle Enter key for text mode
+  // Handle Ctrl+Enter key
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -191,14 +188,13 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const micDisabled = loading || isSpeaking;
 
   return (
-    <div className="flex flex-col border-t border-[#1e293b] bg-[#0a0e1a] p-4 flex-shrink-0 font-mono">
+    <div className="flex flex-col border-t border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#0a0e1a] p-4 flex-shrink-0 font-mono rounded-b-xl transition-colors">
       {voiceMode ? (
         <div className="flex flex-col items-center gap-3">
           {/* Main Mic Button */}
           <button
             onClick={() => {
               if (listening) {
-                // If there's transcript, submit it; otherwise just stop
                 if (inputRef.current.trim()) {
                   handleSubmit();
                 } else {
@@ -213,7 +209,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
               listening
                 ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30 animate-pulse'
                 : micDisabled
-                ? 'bg-slate-800 text-slate-600 opacity-50 cursor-not-allowed'
+                ? 'bg-gray-300 dark:bg-slate-800 text-gray-400 dark:text-slate-600 opacity-50 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
             }`}
           >
@@ -225,16 +221,16 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
           </button>
 
           {/* Status text */}
-          <span className={`text-xs tracking-wider ${
-            listening ? 'text-red-400 animate-pulse' : micDisabled ? 'text-slate-600' : 'text-slate-500'
+          <span className={`text-xs tracking-wider font-semibold ${
+            listening ? 'text-red-500 dark:text-red-400 animate-pulse' : micDisabled ? 'text-gray-400 dark:text-slate-600' : 'text-gray-500 dark:text-slate-500'
           }`}>
             {loading ? 'PROCESSING...' : isSpeaking ? 'AI IS SPEAKING...' : listening ? 'LISTENING... (tap to send)' : 'TAP MIC TO SPEAK'}
           </span>
 
           {/* Show transcript preview */}
           {input && (
-            <div className="w-full mt-1 p-3 bg-slate-900/50 border border-slate-800 rounded text-slate-300 text-sm italic">
-              "{input}"
+            <div className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800 rounded-lg text-gray-700 dark:text-slate-300 text-sm italic transition-colors">
+              &ldquo;{input}&rdquo;
             </div>
           )}
 
@@ -261,13 +257,13 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
             }}
             placeholder="Type your response... (Enter to send)"
             rows={3}
-            className="w-full bg-[#0f172a] border border-[#1e293b] rounded-lg text-slate-200 p-3 text-sm focus:outline-none focus:border-blue-500 resize-none font-mono placeholder-slate-600"
+            className="w-full bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#1e293b] rounded-lg text-gray-800 dark:text-slate-200 p-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none font-mono placeholder-gray-400 dark:placeholder-slate-600 transition-colors"
             disabled={loading || isSpeaking}
           />
           <button
             onClick={() => handleSubmit()}
             disabled={loading || !input.trim() || isSpeaking}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 disabled:text-slate-500 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
           >
             SEND <Send size={14} />
           </button>

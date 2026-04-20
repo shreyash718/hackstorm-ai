@@ -46,6 +46,7 @@ body {
   }
 }
 
+/* Light mode scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -54,9 +55,17 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
   background: #334155;
 }
