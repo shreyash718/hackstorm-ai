@@ -1,134 +1,84 @@
-# DSA Interview Simulator
+# HackStorm AI
 
-AI-powered DSA interview platform. Pick a problem, write code, get real interviewer feedback from Claude.
+### AI-Powered B2B Technical Assessment Platform
+
+**HackStorm AI** is a state-of-the-art platform designed to revolutionize technical hiring. By leveraging Google Gemini's advanced LLM capabilities, it provides a human-like, interactive interview experience that goes beyond simple code execution.
 
 ---
 
-## Prerequisites
+## 🚀 Features
 
+### 🤖 AI Interviewer
+- **Interactive DSA Sessions**: Real-time streaming chat that guides candidates through problem-solving phases.
+- **Phase Detection**: Intelligent tracking of interview stages (Introduction, Brainstorming, Coding, Optimization).
+- **Voice Interaction**: Built-in voice-activity detection and text-to-speech for a natural conversational flow.
+
+### 📊 Recruiter Dashboard
+- **Custom Assessments**: Create tailored interview sets for different roles.
+- **Candidate Tracking**: Monitor progress and view detailed performance reports.
+- **In-depth Evaluation**: Automated scoring across technical skills, behavioral traits, and problem-solving efficiency.
+
+### 🛠️ Developer & Admin Tools
+- **Admin Panel**: Manage the entire platform, users, and problem bank.
+- **FastAPI Backend**: High-performance, scalable API with built-in Swagger UI.
+- **Next.js Frontend**: Responsive, modern UI with dark mode support.
+
+---
+
+## 🏗️ Tech Stack
+
+- **Frontend**: Next.js 14, React, Tailwind CSS, Framer Motion, Monaco Editor.
+- **Backend**: FastAPI (Python), Supabase (Auth & PostgreSQL), Google Gemini Pro.
+- **Infrastructure**: Vercel (Frontend), Render (Backend), Supabase (Storage/Auth).
+
+---
+
+## 🛠️ Quick Start
+
+### Prerequisites
 - Python 3.9+
 - Node.js 18+
-- An Anthropic API key → get one at https://console.anthropic.com
+- Supabase Account & Project
+- Google Gemini API Key
+
+### Backend Setup
+1. Navigate to `backend/`:
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+2. Configure `.env` (use `.env.example` as a template).
+3. Start the server:
+   ```bash
+   uvicorn main:app --reload
+   ```
+
+### Frontend Setup
+1. Navigate to `frontend/`:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Configure `.env.local`.
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
 ---
 
-## Setup & Run (do this once)
+## 📖 Documentation
 
-### Step 1 — Get your API key
-1. Go to https://console.anthropic.com
-2. Click "API Keys" → "Create Key"
-3. Copy the key (starts with `sk-ant-...`)
+For detailed information, please refer to the following guides:
 
----
-
-### Step 2 — Backend setup
-
-Open a terminal and run:
-
-```bash
-cd interview-app/backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate it
-# On Mac/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create your .env file
-cp .env.example .env
-# Now open .env and paste your API key:
-# ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# Start the backend
-uvicorn main:app --reload --port 8000
-```
-
-You should see:
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000
-```
+- 🏗️ **[Architecture Guide](file:///c:/interview-app/docs/ARCHITECTURE.md)**: Deep dive into the system design and AI logic.
+- 🔌 **[API Reference](file:///c:/interview-app/docs/API_REFERENCE.md)**: Detailed documentation of all endpoints and Swagger UI.
+- 🤝 **[Contributing](file:///c:/interview-app/docs/CONTRIBUTING.md)**: Guidelines for local development and contributions.
 
 ---
 
-### Step 3 — Frontend setup
+## 🛡️ License
 
-Open a **second terminal** and run:
-
-```bash
-cd interview-app/frontend
-
-# Install dependencies (takes ~2 mins first time)
-npm install
-
-# Start the frontend
-npm start
-```
-
-Browser opens automatically at http://localhost:3000
-
----
-
-## How to use
-
-1. **Pick a problem** from the home screen
-2. **Read the problem** in the left panel
-3. **Write your code** in the middle editor
-4. **Talk to the AI interviewer** in the right chat panel
-   - Explain your approach: *"I'm thinking of using a hashmap..."*
-   - Ask for hints: *"I'm stuck, can you give me a nudge?"*
-   - Discuss complexity: *"This is O(n) time and O(1) space"*
-5. When done, click **END INTERVIEW** → get your evaluation report
-
----
-
-## Project structure
-
-```
-interview-app/
-├── backend/
-│   ├── main.py          ← FastAPI server + all AI logic
-│   ├── requirements.txt
-│   └── .env             ← your API key goes here
-└── frontend/
-    ├── src/
-│   │   ├── App.jsx      ← entire React app
-│   │   └── index.js
-    └── public/
-        └── index.html
-```
-
----
-
-## Troubleshooting
-
-**"connecting to backend..." stuck on home screen**
-→ Backend isn't running. Make sure Step 2 is done in a separate terminal.
-
-**"Connection error" in chat**
-→ Check backend terminal for errors. Make sure ANTHROPIC_API_KEY is set in `.env`.
-
-**Monaco editor not loading**
-→ Run `npm install` again in the frontend folder.
-
-**Port 8000 already in use**
-→ `uvicorn main:app --reload --port 8001` and update API url in App.jsx line 3 to `http://localhost:8001`
-
----
-
-## For the hackathon demo
-
-Best demo flow:
-1. Pick "Two Sum" (everyone knows it)
-2. Start with a brute force O(n²) approach — explain it
-3. Watch AI ask about complexity
-4. Optimize to hashmap O(n) solution
-5. AI acknowledges it and asks about edge cases
-6. End interview → show the report card
-
-This 5-minute flow shows: problem reading → coding → AI feedback loop → evaluation. That's the whole pitch.
+This project is licensed under the MIT License - see the LICENSE file for details.
