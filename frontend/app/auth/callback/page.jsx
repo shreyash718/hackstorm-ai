@@ -22,9 +22,18 @@ function AuthCallbackContent() {
       }
 
       if (session) {
-        const next = searchParams.get('next') || '/';
+        // Priority: localStorage (reliable) > searchParams (may be stripped by Supabase)
+        const storedRedirect = localStorage.getItem('redirectAfterAuth');
+        const next = storedRedirect || searchParams.get('next') || '/';
+        
+        // Clean up localStorage
+        if (storedRedirect) {
+          localStorage.removeItem('redirectAfterAuth');
+        }
+
         const userId = session.user.id;
 
+        // Auto-register as recruiter if heading to recruiter area
         if (next.includes('recruiter')) {
           try {
             const res = await fetch(`${API_URL}/recruiter/check/${userId}`);

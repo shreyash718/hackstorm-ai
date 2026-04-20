@@ -123,6 +123,8 @@ export default function CandidateLoginPage() {
 
   const handleGoogleAuth = async () => {
     try {
+      localStorage.setItem('redirectAfterAuth', '/');
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
