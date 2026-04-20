@@ -24,6 +24,7 @@ const STARTER_CODE = {
 };
 
 function speak(text, onEnd) {
+  console.log("Speaking:", text);
   const utter = new SpeechSynthesisUtterance(text);
   
   const voices = window.speechSynthesis.getVoices();
@@ -109,6 +110,7 @@ export default function InterviewScreen() {
     setLoading(true);
 
     try {
+      console.log("Starting stream chat...");
       const response = await streamChatMessage({
         problem_id: problemId,
         code,
@@ -117,12 +119,18 @@ export default function InterviewScreen() {
         user_id: user?.id
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const reader = response.body.getReader();
+      console.log("Reader obtained");
       const decoder = new TextDecoder();
       
       let assistantContent = '';
       let spokenContent = '';
       let isComplete = false;
+      let buffer = '';
 
       // Add a placeholder message for the assistant
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -131,8 +139,9 @@ export default function InterviewScreen() {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -151,14 +160,20 @@ export default function InterviewScreen() {
                 // Incremental TTS: Speak finished sentences
                 if (voiceMode) {
                   const currentText = assistantContent.slice(spokenContent.length);
-                  // Look for sentence terminators or natural pauses
-                  if (/[.!?](\s|$)/.test(currentText) || (currentText.length > 60 && /\s$/.test(currentText))) {
+                  // Look for sentence terminators
+                  if (/[.!?](\s|$)/.test(currentText)) {
                     const toSpeak = currentText.trim();
                     if (toSpeak) {
                       setIsSpeaking(true);
-                      speak(toSpeak, () => {
-                        // isSpeaking will be handled at the end
-                      });
+                      speak(toSpeak);
+                      spokenContent = assistantContent;
+                    }
+                  } else if (currentText.length > 80 && /\s$/.test(currentText)) {
+                    // Force speak if sentence is getting too long
+                    const toSpeak = currentText.trim();
+                    if (toSpeak) {
+                      setIsSpeaking(true);
+                      speak(toSpeak);
                       spokenContent = assistantContent;
                     }
                   }
@@ -168,7 +183,7 @@ export default function InterviewScreen() {
                 isComplete = data.is_complete;
               }
             } catch (e) {
-              // Ignore parse errors for incomplete chunks
+              console.error("Parse error:", e, line);
             }
           }
         }

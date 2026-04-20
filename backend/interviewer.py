@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+import time
 from typing import List, Dict, Any
 
 def build_system_prompt(problem: Dict[str, Any], phase: str, code: str, history: str) -> str:
@@ -43,18 +44,50 @@ CONVERSATION SO FAR:
 
 def call_gemini(system_prompt: str, user_message: str) -> str:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    
+    for attempt in range(3):
+        try:
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+                wait_time = 2 ** (attempt + 1)  # 2, 4, 8 seconds
+                print(f"Rate limited, retrying in {wait_time}s (attempt {attempt + 1}/3)")
+                time.sleep(wait_time)
+                if attempt == 2:
+                    raise
+            else:
+                raise
 
 def call_gemini_stream(system_prompt: str, user_message: str):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
-    response = model.generate_content(prompt, stream=True)
-    for chunk in response:
-        yield chunk.text
+    
+    for attempt in range(3):
+        try:
+            response = model.generate_content(prompt, stream=True)
+            for chunk in response:
+                try:
+                    if chunk.text:
+                        yield chunk.text
+                except ValueError:
+                    # Handle safety filter blocks
+                    continue
+            return  # Success, exit retry loop
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+                wait_time = 2 ** (attempt + 1)
+                print(f"Rate limited on stream, retrying in {wait_time}s (attempt {attempt + 1}/3)")
+                time.sleep(wait_time)
+                if attempt == 2:
+                    raise
+            else:
+                raise
 
 def detect_phase_transition(history: List[Dict[str, str]], current_phase: str) -> str:
     # A simple state machine logic to advance phases based on message count or keywords

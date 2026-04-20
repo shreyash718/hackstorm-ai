@@ -54,16 +54,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     r.interimResults = true;
     
     r.onresult = (e) => {
-      let finalTranscript = '';
-      for (let i = e.resultIndex; i < e.results.length; ++i) {
-        if (e.results[i].isFinal) {
-          finalTranscript += e.results[i][0].transcript;
-        }
+      let currentTranscript = '';
+      for (let i = 0; i < e.results.length; ++i) {
+        currentTranscript += e.results[i][0].transcript;
       }
-      if (finalTranscript) {
-        const fullText = inputRef.current + " " + finalTranscript;
-        setInput(fullText.trim());
-        resetSilenceTimer(fullText.trim());
+      
+      if (currentTranscript.trim() !== inputRef.current) {
+        setInput(currentTranscript);
+        resetSilenceTimer(currentTranscript);
       }
     };
     

@@ -94,6 +94,7 @@ def start_session(problem_id: int):
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
+    print(f"Chat request received: stream={req.stream}, msg={req.candidate_message}")
     problem = get_problem(req.problem_id)
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
@@ -117,18 +118,34 @@ async def chat(req: ChatRequest):
     
     if req.stream:
         async def stream_generator():
-            full_response = ""
-            for chunk in call_gemini_stream(system_prompt, req.candidate_message):
-                full_response += chunk
-                yield f"data: {json.dumps({'text': chunk})}\n\n"
-            
-            is_complete = detect_interview_complete(full_response)
-            yield f"data: {json.dumps({'is_complete': is_complete})}\n\n"
+            try:
+                full_response = ""
+                for chunk in call_gemini_stream(system_prompt, req.candidate_message):
+                    full_response += chunk
+                    yield f"data: {json.dumps({'text': chunk})}\n\n"
+                
+                is_complete = detect_interview_complete(full_response)
+                yield f"data: {json.dumps({'is_complete': is_complete})}\n\n"
+            except Exception as e:
+                error_msg = str(e)
+                print(f"Gemini stream error: {error_msg}")
+                if "429" in error_msg or "quota" in error_msg.lower():
+                    yield f"data: {json.dumps({'text': 'I need a moment... the AI service is temporarily busy. Please try again in a few seconds.'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'text': f'Sorry, I encountered an error: {error_msg}'})}\n\n"
+                yield f"data: {json.dumps({'is_complete': False})}\n\n"
             
         return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
     # Call Gemini (non-streaming fallback)
-    reply = call_gemini(system_prompt, req.candidate_message)
+    try:
+        reply = call_gemini(system_prompt, req.candidate_message)
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Gemini error: {error_msg}")
+        if "429" in error_msg or "quota" in error_msg.lower():
+            raise HTTPException(status_code=503, detail="AI service is temporarily busy. Please try again in a few seconds.")
+        raise HTTPException(status_code=500, detail=f"AI service error: {error_msg}")
     
     is_complete = detect_interview_complete(reply)
     if is_complete:
