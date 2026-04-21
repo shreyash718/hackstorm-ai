@@ -4,7 +4,9 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // 1. ALWAYS allow the authorization page so you can fix your access
-  if (pathname === '/admin/authorize') {
+  // We use startsWith and normalization to be safe
+  const normalizedPath = pathname.replace(/\/$/, '');
+  if (normalizedPath === '/admin/authorize') {
     return NextResponse.next();
   }
 
