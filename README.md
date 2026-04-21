@@ -22,6 +22,7 @@
 - **Admin Panel**: Manage the entire platform, users, and problem bank.
 - **FastAPI Backend**: High-performance, scalable API with built-in Swagger UI.
 - **Next.js Frontend**: Responsive, modern UI with dark mode support.
+- **Admin Protection**: Multi-layer security including IP-based whitelisting and hardware-specific device authorization (Laptop Link).
 
 ---
 
@@ -74,6 +75,7 @@
 For detailed information, please refer to the following guides:
 
 - 🏗️ **[Architecture Guide](file:///c:/interview-app/docs/ARCHITECTURE.md)**: Deep dive into the system design and AI logic.
+- 🛡️ **[Security Guide](file:///c:/interview-app/docs/SECURITY.md)**: Detailed instructions on IP whitelisting and Device Authorization.
 - 🔌 **[API Reference](file:///c:/interview-app/docs/API_REFERENCE.md)**: Detailed documentation of all endpoints and Swagger UI.
 - 🤝 **[Contributing](file:///c:/interview-app/docs/CONTRIBUTING.md)**: Guidelines for local development and contributions.
 
