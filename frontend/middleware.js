@@ -3,9 +3,14 @@ import { NextResponse } from 'next/server';
 export function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Only apply restriction to /admin/* routes
+  // 1. ALWAYS allow the authorization page so you can fix your access
+  if (pathname === '/admin/authorize') {
+    return NextResponse.next();
+  }
+
+  // Only apply restriction to other /admin/* routes
   if (pathname.startsWith('/admin')) {
-    // 1. Check for Device Secret (Laptop Authorization)
+    // 2. Check for Device Secret (Laptop Authorization Cookie)
     const deviceSecret = process.env.ADMIN_DEVICE_SECRET;
     const adminCookie = request.cookies.get('hackstorm_admin_auth')?.value;
 
@@ -13,7 +18,7 @@ export function middleware(request) {
       return NextResponse.next();
     }
 
-    // 2. Fallback: Check for IP Restriction
+    // 3. Fallback: Check for IP Restriction
     const allowedIpsStr = process.env.ALLOWED_ADMIN_IPS || '';
     if (allowedIpsStr) {
       const allowedIps = allowedIpsStr.split(',').map(ip => ip.trim()).filter(Boolean);
@@ -26,13 +31,8 @@ export function middleware(request) {
       }
     }
 
-    // 3. If neither Device Secret nor IP matches, and at least one is configured, block
+    // 4. If neither Device Secret nor IP matches, and at least one is configured, block
     if (deviceSecret || allowedIpsStr) {
-      // Allow the authorization page itself so you can set the cookie!
-      if (pathname === '/admin/authorize') {
-        return NextResponse.next();
-      }
-
       // Redirect to forbidden page
       const url = request.nextUrl.clone();
       url.pathname = '/forbidden';

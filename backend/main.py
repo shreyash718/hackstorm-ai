@@ -47,6 +47,14 @@ from starlette.responses import JSONResponse
 class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path.startswith("/admin"):
+            # 1. Check for Device Secret (Cookie)
+            device_secret = os.getenv("ADMIN_DEVICE_SECRET")
+            admin_cookie = request.cookies.get("hackstorm_admin_auth")
+            
+            if device_secret and admin_cookie == device_secret:
+                return await call_next(request)
+
+            # 2. Fallback: Check for IP Restriction
             allowed_ips_str = os.getenv("ALLOWED_ADMIN_IPS", "")
             
             if allowed_ips_str:
@@ -62,7 +70,7 @@ class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
                 if client_ip not in allowed_ips:
                     return JSONResponse(
                         status_code=403,
-                        content={"detail": f"Access denied. Your IP ({client_ip}) is not authorized to access the admin panel."}
+                        content={"detail": f"Access denied. Your IP ({client_ip}) is not authorized."}
                     )
         
         return await call_next(request)
