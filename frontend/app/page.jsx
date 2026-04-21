@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchProblems, startSession } from '@/lib/api';
+import { fetchProblems, startSession, API_URL } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { Bot, Code2, Sparkles, ArrowRight, Mic, Filter, ArrowLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -44,28 +44,54 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
+    let redirectHandled = false;
+
+    const handlePostOAuthRedirect = async (session) => {
+      if (redirectHandled) return;
+      
+      const redirectPath = localStorage.getItem('redirectAfterAuth');
+      if (!redirectPath) return;
+      
+      redirectHandled = true;
+      localStorage.removeItem('redirectAfterAuth');
+
+      // If recruiter flow: register as recruiter + redirect to recruiter domain
+      if (redirectPath.includes('recruiter')) {
+        try {
+          const res = await fetch(`${API_URL}/recruiter/check/${session.user.id}`);
+          const checkData = await res.json();
+          if (!checkData.is_recruiter) {
+            await fetch(`${API_URL}/recruiter/make`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: session.user.id })
+            });
+          }
+        } catch (err) {
+          console.error('Error during recruiter registration:', err);
+        }
+        // Hard redirect to recruiter domain
+        window.location.href = `${RECRUITER_DOMAIN}${redirectPath}`;
+        return;
+      }
+      
+      // Student flow: already on the right page, just continue
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       setLoadingAuth(false);
-      
-      // Handle fallback redirects if Supabase ignores the redirectTo param
       if (session?.user) {
-        const redirectPath = localStorage.getItem('redirectAfterAuth');
-        if (redirectPath) {
-          localStorage.removeItem('redirectAfterAuth');
-          router.push(redirectPath);
-        }
+        handlePostOAuthRedirect(session);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
-      if (session?.user) {
-        const redirectPath = localStorage.getItem('redirectAfterAuth');
-        if (redirectPath) {
-          localStorage.removeItem('redirectAfterAuth');
-          router.push(redirectPath);
-        }
+      if (_event === 'SIGNED_IN' && session?.user) {
+        setLoadingAuth(false);
+        handlePostOAuthRedirect(session);
       }
     });
 
