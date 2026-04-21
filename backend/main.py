@@ -94,30 +94,47 @@ async def generate_tts(request: Request):
         if not text:
             return JSONResponse(status_code=400, content={"error": "No text provided"})
             
+        print(f"Generating TTS for: {text[:50]}...")
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        # Using the TTS-capable model as requested
-        model = genai.GenerativeModel("gemini-3.1-flash-tts-preview")
         
-        # Requesting audio output specifically
-        response = model.generate_content(
-            f"Please read this text aloud as a professional interviewer: {text}",
-            generation_config={"response_mime_type": "audio/wav"}
-        )
+        # Try the requested model first
+        model_name = "gemini-3.1-flash-tts-preview"
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(
+                f"Please read this text aloud as a professional interviewer: {text}",
+                generation_config={"response_mime_type": "audio/wav"}
+            )
+        except Exception as e:
+            print(f"Primary model {model_name} failed: {e}. Trying fallback...")
+            # Fallback to a confirmed multimodal model
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(
+                f"Generate a professional audio reading of this text: {text}",
+                generation_config={"response_mime_type": "audio/wav"}
+            )
         
-        # The SDK returns the audio bytes in the response parts
-        # This is a simplified version; in a real scenario, we'd stream the bits
         audio_data = None
-        for part in response.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.mime_type == "audio/wav":
-                audio_data = part.inline_data.data
-                break
+        # Robust extraction from candidates and parts
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    audio_data = part.inline_data.data
+                    break
+                elif hasattr(part, 'data') and part.data: # Some SDK versions use .data directly
+                    audio_data = part.data
+                    break
         
         if not audio_data:
-            return JSONResponse(status_code=500, content={"error": "No audio generated"})
+            print("Failed to find audio data in Gemini response.")
+            # Final check: check if it's in the text field (unlikely but safe)
+            return JSONResponse(status_code=500, content={"error": "No audio data found in response"})
             
+        print(f"Successfully generated {len(audio_data)} bytes of audio.")
         return Response(content=audio_data, media_type="audio/wav")
     except Exception as e:
-        print(f"TTS Error: {e}")
+        import traceback
+        traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/health/db")

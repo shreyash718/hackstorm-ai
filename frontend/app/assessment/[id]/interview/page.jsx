@@ -18,15 +18,27 @@ const STARTER_CODE = {
     rust: `// Write your solution here\n`
 };
 
+let currentAudio = null;
+
 async function speak(text, onEnd) {
   try {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+
     const audioBlob = await generateTTS(text);
     const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
+    const audio = new Audio();
+    audio.src = audioUrl;
+    currentAudio = audio;
+    
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl);
+      if (currentAudio === audio) currentAudio = null;
       if (onEnd) onEnd();
     };
+
     await audio.play();
   } catch (err) {
     console.error("TTS Playback Error:", err);
