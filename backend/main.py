@@ -86,6 +86,9 @@ def get_ip(request: Request):
         client_ip = request.client.host
     return {"ip": client_ip}
 
+from google import genai as new_genai
+from google.genai import types as new_types
+
 @app.post("/admin/tts")
 async def generate_tts(request: Request):
     try:
@@ -94,43 +97,33 @@ async def generate_tts(request: Request):
         if not text:
             return JSONResponse(status_code=400, content={"error": "No text provided"})
             
-        print(f"Generating TTS for: {text[:50]}...")
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        print(f"Generating TTS (Kore) for: {text[:50]}...")
         
-        # Try the requested model first
-        model_name = "gemini-3.1-flash-tts-preview"
-        try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(
-                f"Please read this text aloud as a professional interviewer: {text}",
-                generation_config={"response_mime_type": "audio/wav"}
-            )
-        except Exception as e:
-            print(f"Primary model {model_name} failed: {e}. Trying fallback...")
-            # Fallback to a confirmed multimodal model
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(
-                f"Generate a professional audio reading of this text: {text}",
-                generation_config={"response_mime_type": "audio/wav"}
-            )
+        client = new_genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
-        audio_data = None
-        # Robust extraction from candidates and parts
-        if response.candidates:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    audio_data = part.inline_data.data
-                    break
-                elif hasattr(part, 'data') and part.data: # Some SDK versions use .data directly
-                    audio_data = part.data
-                    break
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-tts-preview",
+            contents=f"Say cheerfully: {text}",
+            config=new_types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=new_types.SpeechConfig(
+                    voice_config=new_types.VoiceConfig(
+                        prebuilt_voice_config=new_types.PrebuiltVoiceConfig(
+                            voice_name='Kore',
+                        )
+                    )
+                ),
+            )
+        )
+        
+        # Extract audio data according to the new SDK structure
+        audio_data = response.candidates[0].content.parts[0].inline_data.data
         
         if not audio_data:
-            print("Failed to find audio data in Gemini response.")
-            # Final check: check if it's in the text field (unlikely but safe)
-            return JSONResponse(status_code=500, content={"error": "No audio data found in response"})
+            print("Failed to generate audio data with new SDK.")
+            return JSONResponse(status_code=500, content={"error": "No audio data in response"})
             
-        print(f"Successfully generated {len(audio_data)} bytes of audio.")
+        print(f"Successfully generated {len(audio_data)} bytes of audio (Kore).")
         return Response(content=audio_data, media_type="audio/wav")
     except Exception as e:
         import traceback

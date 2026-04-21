@@ -1,11 +1,10 @@
-import google.generativeai as genai
+from google import genai
 import os
 import json
 from typing import Dict, Any, List
 
 def generate_report(problem: Dict[str, Any], chat_history: List[Dict[str, str]], final_code: str) -> Dict[str, Any]:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
     history_text = ""
     for msg in chat_history:
@@ -40,7 +39,10 @@ Give a structured evaluation as JSON with these exact keys:
 Return ONLY valid JSON, without formatting blocks or markdown.
 """
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-3.1-flash-lite-preview",
+        contents=prompt
+    )
     try:
         raw = response.text.strip()
         if raw.startswith("```json"):
