@@ -188,17 +188,9 @@ export default function RecruiterLoginPage() {
   };
 
   const handleGoogleAuth = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `https://hackstorm-ai.vercel.app/auth/callback?next=/recruiter/dashboard`,
-        }
-      });
-      if (error) throw error;
-    } catch (err) {
-      setError(err.message);
-    }
+    // Redirect to student domain's auth initiator page
+    // This ensures localStorage is set on the same domain as the callback
+    window.location.href = 'https://hackstorm-ai.vercel.app/auth/google?next=/recruiter/dashboard';
   };
 
   return (

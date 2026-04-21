@@ -122,19 +122,8 @@ export default function CandidateLoginPage() {
   };
 
   const handleGoogleAuth = async () => {
-    try {
-      localStorage.setItem('redirectAfterAuth', '/');
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/`,
-        }
-      });
-      if (error) throw error;
-    } catch (err) {
-      setError(err.message);
-    }
+    // Use the centralized auth initiator page
+    window.location.href = '/auth/google?next=/';
   };
 
   return (

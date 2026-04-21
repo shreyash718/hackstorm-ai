@@ -7,24 +7,25 @@ import { API_URL } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
+const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
+
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
-    const STUDENT_DOMAIN = 'https://hackstorm-ai.vercel.app';
+    let handled = false;
 
     const handleRedirect = async (session) => {
+      if (handled) return;
+      handled = true;
+
       const userId = session.user.id;
 
-      // Determine where to go: localStorage > URL param > domain detection
+      // Get redirect destination from localStorage (set by /auth/google page on this same domain)
       const storedRedirect = localStorage.getItem('redirectAfterAuth');
       const paramRedirect = searchParams.get('next');
-      const isRecruiterDomain = window.location.hostname.includes('hackstorm-jiml3ft8o');
-      const domainDefault = isRecruiterDomain ? '/recruiter/dashboard' : '/';
-
-      const next = storedRedirect || paramRedirect || domainDefault;
+      const next = storedRedirect || paramRedirect || '/';
 
       if (storedRedirect) localStorage.removeItem('redirectAfterAuth');
 
@@ -44,27 +45,25 @@ function AuthCallbackContent() {
           console.error('Error during recruiter check/make:', err);
         }
 
-        // If we're on the student domain but need to go to recruiter domain,
-        // do a full page redirect to the recruiter domain
-        if (!isRecruiterDomain) {
-          window.location.href = `${RECRUITER_DOMAIN}${next}`;
-          return;
-        }
+        // Redirect to the recruiter domain
+        window.location.href = `${RECRUITER_DOMAIN}${next}`;
+        return;
       }
 
+      // Student flow: stay on this domain
       router.push(next);
     };
 
-    // Listen for auth state changes (handles both PKCE code exchange and implicit flow)
+    // Listen for auth state changes (PKCE code exchange triggers this)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
           await handleRedirect(session);
         }
       }
     );
 
-    // Also check if session already exists (e.g. implicit flow with hash tokens)
+    // Also check if session already exists
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
         console.error('Auth callback error:', error.message);
