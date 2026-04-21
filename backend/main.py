@@ -39,6 +39,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- IP Restriction Middleware for /admin/* routes ---
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path.startswith("/admin"):
+            allowed_ips_str = os.getenv("ALLOWED_ADMIN_IPS", "")
+            
+            if allowed_ips_str:
+                allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",") if ip.strip()]
+                
+                # Get client IP (handles proxies like Render/Vercel)
+                client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                if not client_ip:
+                    client_ip = request.headers.get("x-real-ip", "")
+                if not client_ip and request.client:
+                    client_ip = request.client.host
+                
+                if client_ip not in allowed_ips:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": f"Access denied. Your IP ({client_ip}) is not authorized to access the admin panel."}
+                    )
+        
+        return await call_next(request)
+
+app.add_middleware(AdminIPRestrictionMiddleware)
+
 @app.get("/health/db")
 def health_db():
     import traceback
