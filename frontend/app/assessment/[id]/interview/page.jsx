@@ -21,27 +21,50 @@ const STARTER_CODE = {
 let currentAudio = null;
 
 async function speak(text, onEnd) {
+  if (!text) return;
+  console.log("AI Voice: Preparing to speak...", text.substring(0, 30) + "...");
+  
   try {
     if (currentAudio) {
       currentAudio.pause();
+      currentAudio.src = "";
       currentAudio = null;
     }
 
-    const audioBlob = await generateTTS(text);
+    const data = await generateTTS(text);
+    // Explicitly wrap in a typed Blob to ensure browser compatibility
+    const audioBlob = new Blob([data], { type: 'audio/wav' });
     const audioUrl = URL.createObjectURL(audioBlob);
+    
+    console.log("AI Voice: Audio loaded, playing...");
     const audio = new Audio();
     audio.src = audioUrl;
     currentAudio = audio;
     
     audio.onended = () => {
+      console.log("AI Voice: Finished speaking.");
       URL.revokeObjectURL(audioUrl);
       if (currentAudio === audio) currentAudio = null;
       if (onEnd) onEnd();
     };
 
-    await audio.play();
+    audio.onerror = (e) => {
+      console.error("AI Voice: Browser playback error:", e);
+      if (onEnd) onEnd();
+    };
+
+    // Explicitly load and play to satisfy mobile/strict browsers
+    audio.load();
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.warn("AI Voice: Autoplay blocked or interrupted:", error);
+        if (onEnd) onEnd();
+      });
+    }
   } catch (err) {
-    console.error("TTS Playback Error:", err);
+    console.error("AI Voice: Network or API Error:", err);
     if (onEnd) onEnd();
   }
 }
