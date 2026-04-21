@@ -101,6 +101,8 @@ def wrap_pcm_in_wav(pcm_data, channels=1, rate=24000, sample_width=2):
             wf.writeframes(pcm_data)
         return wav_io.getvalue()
 
+import base64
+
 @app.post("/api/tts")
 async def generate_tts(request: Request):
     try:
@@ -109,13 +111,9 @@ async def generate_tts(request: Request):
         if not text:
             return JSONResponse(status_code=400, content={"error": "No text provided"})
             
-        print(f"Generating TTS (Kore) for: {text[:50]}...")
+        print(f"Generating TTS (Base64) for: {text[:50]}...")
         
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            print("ERROR: GEMINI_API_KEY is missing in backend env!")
-            return JSONResponse(status_code=500, content={"error": "API Key not configured"})
-
         client = new_genai.Client(api_key=api_key)
         
         response = client.models.generate_content(
@@ -133,25 +131,18 @@ async def generate_tts(request: Request):
             )
         )
         
-        # Extract raw PCM data
-        if not response.candidates or not response.candidates[0].content.parts:
-            print("ERROR: Empty response candidates from Gemini TTS")
-            return JSONResponse(status_code=500, content={"error": "AI returned no audio parts"})
-
         raw_pcm = response.candidates[0].content.parts[0].inline_data.data
-        
         if not raw_pcm:
-            print("ERROR: No inline_data in Gemini response parts")
-            return JSONResponse(status_code=500, content={"error": "No audio data in response"})
+            return JSONResponse(status_code=500, content={"error": "No audio data"})
             
-        # Wrap in WAV header so browser can play it
         wav_data = wrap_pcm_in_wav(raw_pcm)
+        
+        # Encode to Base64 for ultra-robust transmission
+        b64_audio = base64.b64encode(wav_data).decode('utf-8')
             
-        print(f"Successfully generated {len(wav_data)} bytes of formatted WAV (Kore).")
-        return Response(content=wav_data, media_type="audio/wav")
+        return {"audio": b64_audio, "format": "wav"}
     except Exception as e:
         import traceback
-        print("CRITICAL TTS ERROR:")
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 

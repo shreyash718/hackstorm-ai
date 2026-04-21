@@ -91,6 +91,6 @@ export const removeRecruiter = async (adminId, targetId) => {
 };
 
 export const generateTTS = async (text) => {
-  const response = await api.post('/api/tts', { text }, { responseType: 'blob' });
-  return response.data;
+  const response = await api.post('/api/tts', { text });
+  return response.data; // Returns { audio: '...', format: 'wav' }
 };

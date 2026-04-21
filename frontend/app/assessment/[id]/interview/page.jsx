@@ -31,19 +31,21 @@ async function speak(text, onEnd) {
       currentAudio = null;
     }
 
-    const data = await generateTTS(text);
-    // Explicitly wrap in a typed Blob to ensure browser compatibility
-    const audioBlob = new Blob([data], { type: 'audio/wav' });
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    console.log("AI Voice: Audio loaded, playing...");
+    const res = await generateTTS(text);
+    if (!res || !res.audio) {
+        console.error("AI Voice: No audio data in API response");
+        if (onEnd) onEnd();
+        return;
+    }
+
+    console.log("AI Voice: Audio loaded (B64), playing...");
     const audio = new Audio();
-    audio.src = audioUrl;
+    // Use the Base64 string directly as a Data URL
+    audio.src = `data:audio/wav;base64,${res.audio}`;
     currentAudio = audio;
     
     audio.onended = () => {
       console.log("AI Voice: Finished speaking.");
-      URL.revokeObjectURL(audioUrl);
       if (currentAudio === audio) currentAudio = null;
       if (onEnd) onEnd();
     };
@@ -53,7 +55,6 @@ async function speak(text, onEnd) {
       if (onEnd) onEnd();
     };
 
-    // Explicitly load and play to satisfy mobile/strict browsers
     audio.load();
     const playPromise = audio.play();
     
