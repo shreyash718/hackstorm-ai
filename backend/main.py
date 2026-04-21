@@ -91,17 +91,43 @@ import wave
 from google import genai as new_genai
 from google.genai import types as new_types
 
-def wrap_pcm_in_wav(pcm_data, channels=1, rate=24000, sample_width=2):
-    """Wraps raw PCM data in a WAV container."""
-    with io.BytesIO() as wav_io:
-        with wave.open(wav_io, "wb") as wf:
-            wf.setnchannels(channels)
-            wf.setsampwidth(sample_width)
-            wf.setframerate(rate)
-            wf.writeframes(pcm_data)
-        return wav_io.getvalue()
 
-import base64
+import struct
+
+def parse_audio_mime_type(mime_type: str) -> dict:
+    bits_per_sample = 16
+    rate = 24000
+    parts = mime_type.split(";")
+    for param in parts:
+        param = param.strip()
+        if param.lower().startswith("rate="):
+            try:
+                rate = int(param.split("=", 1)[1])
+            except: pass
+        elif param.startswith("audio/L"):
+            try:
+                bits_per_sample = int(param.split("L", 1)[1])
+            except: pass
+    return {"bits_per_sample": bits_per_sample, "rate": rate}
+
+def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
+    parameters = parse_audio_mime_type(mime_type)
+    bits_per_sample = parameters["bits_per_sample"]
+    sample_rate = parameters["rate"]
+    num_channels = 1
+    data_size = len(audio_data)
+    bytes_per_sample = bits_per_sample // 8
+    block_align = num_channels * bytes_per_sample
+    byte_rate = sample_rate * block_align
+    chunk_size = 36 + data_size
+    
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", chunk_size, b"WAVE", b"fmt ", 16, 1,
+        num_channels, sample_rate, byte_rate, block_align,
+        bits_per_sample, b"data", data_size
+    )
+    return header + audio_data
 
 @app.post("/api/tts")
 async def generate_tts(request: Request):
@@ -111,33 +137,37 @@ async def generate_tts(request: Request):
         if not text:
             return JSONResponse(status_code=400, content={"error": "No text provided"})
             
-        print(f"Generating TTS (Base64) for: {text[:50]}...")
+        print(f"Generating TTS (Zephyr) for: {text[:50]}...")
         
         api_key = os.getenv("GEMINI_API_KEY")
         client = new_genai.Client(api_key=api_key)
         
         response = client.models.generate_content(
             model="gemini-3.1-flash-tts-preview",
-            contents=f"Say cheerfully: {text}",
+            contents=text,
             config=new_types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
+                response_modalities=["audio"],
                 speech_config=new_types.SpeechConfig(
                     voice_config=new_types.VoiceConfig(
                         prebuilt_voice_config=new_types.PrebuiltVoiceConfig(
-                            voice_name='Kore',
+                            voice_name="Zephyr"
                         )
                     )
                 ),
             )
         )
         
-        raw_pcm = response.candidates[0].content.parts[0].inline_data.data
-        if not raw_pcm:
-            return JSONResponse(status_code=500, content={"error": "No audio data"})
-            
-        wav_data = wrap_pcm_in_wav(raw_pcm)
+        if not response.candidates or not response.candidates[0].content.parts:
+            return JSONResponse(status_code=500, content={"error": "No audio generated"})
+
+        part = response.candidates[0].content.parts[0]
+        if not part.inline_data:
+            return JSONResponse(status_code=500, content={"error": "No inline data"})
+
+        audio_bytes = part.inline_data.data
+        mime_type = part.inline_data.mime_type or "audio/L16;rate=24000"
         
-        # Encode to Base64 for ultra-robust transmission
+        wav_data = convert_to_wav(audio_bytes, mime_type)
         b64_audio = base64.b64encode(wav_data).decode('utf-8')
             
         return {"audio": b64_audio, "format": "wav"}
