@@ -69,6 +69,15 @@ class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(AdminIPRestrictionMiddleware)
 
+@app.get("/ip")
+def get_ip(request: Request):
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.headers.get("x-real-ip", "")
+    if not client_ip and request.client:
+        client_ip = request.client.host
+    return {"ip": client_ip}
+
 @app.get("/health/db")
 def health_db():
     import traceback

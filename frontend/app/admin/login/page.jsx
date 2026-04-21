@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Building2, LockKeyhole, Mail } from 'lucide-react';
+import { Building2, LockKeyhole, Mail, Fingerprint } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -12,6 +12,14 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [ip, setIp] = useState('Detecting...');
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ip`)
+      .then(res => res.json())
+      .then(data => setIp(data.ip))
+      .catch(err => setIp('Unknown'));
+  }, []);
 
   const handleAdminAuth = async (e) => {
     e.preventDefault();
@@ -112,6 +120,15 @@ export default function AdminLoginPage() {
                     {loading ? 'Authenticating...' : 'Sign In'}
                 </button>
             </form>
+
+            {/* IP Indicator */}
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
+                    <Fingerprint size={14} />
+                    <span className="text-[10px] font-mono uppercase tracking-widest">Detected IP</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-blue-600/70 dark:text-blue-400/70">{ip}</span>
+            </div>
         </div>
 
         {/* Footer */}
