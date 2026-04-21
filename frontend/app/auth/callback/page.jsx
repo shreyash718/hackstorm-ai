@@ -22,9 +22,16 @@ function AuthCallbackContent() {
       }
 
       if (session) {
-        // Priority: localStorage (reliable) > searchParams (may be stripped by Supabase)
+        // Determine redirect based on: localStorage > searchParams > domain detection
         const storedRedirect = localStorage.getItem('redirectAfterAuth');
-        const next = storedRedirect || searchParams.get('next') || '/';
+        const paramRedirect = searchParams.get('next');
+        
+        // Domain-based detection: if we're on the recruiter deployment, go to recruiter dashboard
+        const isRecruiterDomain = typeof window !== 'undefined' && 
+          window.location.hostname.includes('hackstorm-jiml3ft8o');
+        const domainRedirect = isRecruiterDomain ? '/recruiter/dashboard' : '/';
+        
+        const next = storedRedirect || paramRedirect || domainRedirect;
         
         // Clean up localStorage
         if (storedRedirect) {
