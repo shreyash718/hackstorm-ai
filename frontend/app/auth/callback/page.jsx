@@ -12,59 +12,71 @@ function AuthCallbackContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
+    const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
+    const STUDENT_DOMAIN = 'https://hackstorm-ai.vercel.app';
 
+    const handleRedirect = async (session) => {
+      const userId = session.user.id;
+
+      // Determine where to go: localStorage > URL param > domain detection
+      const storedRedirect = localStorage.getItem('redirectAfterAuth');
+      const paramRedirect = searchParams.get('next');
+      const isRecruiterDomain = window.location.hostname.includes('hackstorm-jiml3ft8o');
+      const domainDefault = isRecruiterDomain ? '/recruiter/dashboard' : '/';
+
+      const next = storedRedirect || paramRedirect || domainDefault;
+
+      if (storedRedirect) localStorage.removeItem('redirectAfterAuth');
+
+      // Auto-register as recruiter if heading to recruiter area
+      if (next.includes('recruiter')) {
+        try {
+          const res = await fetch(`${API_URL}/recruiter/check/${userId}`);
+          const checkData = await res.json();
+          if (!checkData.is_recruiter) {
+            await fetch(`${API_URL}/recruiter/make`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: userId })
+            });
+          }
+        } catch (err) {
+          console.error('Error during recruiter check/make:', err);
+        }
+
+        // If we're on the student domain but need to go to recruiter domain,
+        // do a full page redirect to the recruiter domain
+        if (!isRecruiterDomain) {
+          window.location.href = `${RECRUITER_DOMAIN}${next}`;
+          return;
+        }
+      }
+
+      router.push(next);
+    };
+
+    // Listen for auth state changes (handles both PKCE code exchange and implicit flow)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await handleRedirect(session);
+        }
+      }
+    );
+
+    // Also check if session already exists (e.g. implicit flow with hash tokens)
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
         console.error('Auth callback error:', error.message);
         router.push('/login?error=auth_callback_failed');
         return;
       }
-
       if (session) {
-        // Determine redirect based on: localStorage > searchParams > domain detection
-        const storedRedirect = localStorage.getItem('redirectAfterAuth');
-        const paramRedirect = searchParams.get('next');
-        
-        // Domain-based detection: if we're on the recruiter deployment, go to recruiter dashboard
-        const isRecruiterDomain = typeof window !== 'undefined' && 
-          window.location.hostname.includes('hackstorm-jiml3ft8o');
-        const domainRedirect = isRecruiterDomain ? '/recruiter/dashboard' : '/';
-        
-        const next = storedRedirect || paramRedirect || domainRedirect;
-        
-        // Clean up localStorage
-        if (storedRedirect) {
-          localStorage.removeItem('redirectAfterAuth');
-        }
-
-        const userId = session.user.id;
-
-        // Auto-register as recruiter if heading to recruiter area
-        if (next.includes('recruiter')) {
-          try {
-            const res = await fetch(`${API_URL}/recruiter/check/${userId}`);
-            const checkData = await res.json();
-
-            if (!checkData.is_recruiter) {
-              await fetch(`${API_URL}/recruiter/make`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId })
-              });
-            }
-          } catch (err) {
-            console.error('Error during recruiter check/make:', err);
-          }
-        }
-
-        router.push(next);
-      } else {
-        router.push('/login');
+        await handleRedirect(session);
       }
-    };
+    });
 
-    handleAuthCallback();
+    return () => subscription.unsubscribe();
   }, [router, searchParams]);
 
   return <AuthCallbackLoading />;
