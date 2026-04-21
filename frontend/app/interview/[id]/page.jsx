@@ -25,6 +25,21 @@ const STARTER_CODE = {
 
 let currentAudio = null;
 
+function speakLegacy(text, onEnd) {
+  console.warn("AI Voice: Premium TTS failed, falling back to browser default.");
+  const utter = new SpeechSynthesisUtterance(text);
+  
+  // Find a decent browser voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => 
+    v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural"))
+  ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
+  
+  if (preferred) utter.voice = preferred;
+  utter.onend = onEnd || null;
+  window.speechSynthesis.speak(utter);
+}
+
 async function speak(text, onEnd) {
   if (!text) return;
   console.log("AI Voice: Preparing to speak...", text.substring(0, 30) + "...");
@@ -38,14 +53,11 @@ async function speak(text, onEnd) {
 
     const res = await generateTTS(text);
     if (!res || !res.audio) {
-        console.error("AI Voice: No audio data in API response");
-        if (onEnd) onEnd();
-        return;
+        throw new Error("No audio data in response");
     }
 
     console.log("AI Voice: Audio loaded (B64), playing...");
     const audio = new Audio();
-    // Use the Base64 string directly as a Data URL
     audio.src = `data:audio/wav;base64,${res.audio}`;
     currentAudio = audio;
     
@@ -57,7 +69,7 @@ async function speak(text, onEnd) {
 
     audio.onerror = (e) => {
       console.error("AI Voice: Browser playback error:", e);
-      if (onEnd) onEnd();
+      speakLegacy(text, onEnd);
     };
 
     audio.load();
@@ -65,13 +77,13 @@ async function speak(text, onEnd) {
     
     if (playPromise !== undefined) {
       playPromise.catch(error => {
-        console.warn("AI Voice: Autoplay blocked or interrupted:", error);
-        if (onEnd) onEnd();
+        console.warn("AI Voice: Autoplay blocked, falling back to legacy...");
+        speakLegacy(text, onEnd);
       });
     }
   } catch (err) {
-    console.error("AI Voice: Network or API Error:", err);
-    if (onEnd) onEnd();
+    console.error("AI Voice: Premium TTS Error, using legacy:", err);
+    speakLegacy(text, onEnd);
   }
 }
 
