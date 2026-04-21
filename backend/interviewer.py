@@ -44,7 +44,7 @@ CONVERSATION SO FAR:
 
 def call_gemini(system_prompt: str, user_message: str) -> str:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
     prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
     
     for attempt in range(3):
@@ -64,7 +64,7 @@ def call_gemini(system_prompt: str, user_message: str) -> str:
 
 def call_gemini_stream(system_prompt: str, user_message: str):
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
     prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
     
     for attempt in range(3):
