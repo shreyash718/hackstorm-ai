@@ -42,49 +42,12 @@ function speakLegacy(text, onEnd) {
 
 async function speak(text, onEnd) {
   if (!text) return;
-  console.log("AI Voice: Preparing to speak...", text.substring(0, 30) + "...");
-
-  try {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = "";
-      currentAudio = null;
-    }
-
-    const res = await generateTTS(text);
-    if (!res || !res.audio) {
-        throw new Error("No audio data in response");
-    }
-
-    console.log("AI Voice: Audio loaded (B64), playing...");
-    const audio = new Audio();
-    audio.src = `data:audio/wav;base64,${res.audio}`;
-    currentAudio = audio;
-    
-    audio.onended = () => {
-      console.log("AI Voice: Finished speaking.");
-      if (currentAudio === audio) currentAudio = null;
-      if (onEnd) onEnd();
-    };
-
-    audio.onerror = (e) => {
-      console.error("AI Voice: Browser playback error:", e);
-      speakLegacy(text, onEnd);
-    };
-
-    audio.load();
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.warn("AI Voice: Autoplay blocked, falling back to legacy...");
-        speakLegacy(text, onEnd);
-      });
-    }
-  } catch (err) {
-    console.error("AI Voice: Premium TTS Error, using legacy:", err);
-    speakLegacy(text, onEnd);
-  }
+  
+  // Interrupt any current speech
+  window.speechSynthesis.cancel();
+  
+  // Use browser-native TTS directly
+  speakLegacy(text, onEnd);
 }
 
 export default function InterviewScreen() {

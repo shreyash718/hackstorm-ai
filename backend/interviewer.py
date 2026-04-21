@@ -1,7 +1,8 @@
-from google import genai
 import os
 import time
 from typing import List, Dict, Any
+import ollama
+import openai
 
 def build_system_prompt(problem: Dict[str, Any], phase: str, code: str, history: str) -> str:
     return f"""
@@ -42,41 +43,81 @@ CONVERSATION SO FAR:
 {history}
 """
 
-def call_gemini(system_prompt: str, user_message: str) -> str:
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
+def get_llm_client():
+    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    if provider == "ollama":
+        return None  # We use the ollama library directly
     
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
-                contents=prompt
+    return openai.OpenAI(
+        api_key=os.getenv("LLM_API_KEY"),
+        base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+    )
+
+def call_gemini(system_prompt: str, user_message: str) -> str:
+    """Generic LLM call (keeping name for compatibility)."""
+    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    model = os.getenv("LLM_MODEL", "mistral")
+    
+    try:
+        if provider == "ollama":
+            response = ollama.chat(
+                model=model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message}
+                ]
             )
-            return response.text.strip()
-        except Exception as e:
-            # ... (retry logic)
-            time.sleep(2 ** (attempt + 1))
-            if attempt == 2: raise
+            return response['message']['content'].strip()
+        else:
+            client = get_llm_client()
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message}
+                ]
+            )
+            return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"LLM Error ({provider}): {e}")
+        raise
 
 def call_gemini_stream(system_prompt: str, user_message: str):
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    prompt = f"{system_prompt}\n\nCandidate says: {user_message}"
+    """Generic LLM stream (keeping name for compatibility)."""
+    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+    model = os.getenv("LLM_MODEL", "mistral")
     
-    for attempt in range(3):
-        try:
-            for chunk in client.models.generate_content_stream(
-                model="gemini-3.1-flash-lite-preview",
-                contents=prompt
-            ):
-                if chunk.text:
-                    yield chunk.text
-            return
-        except Exception as e:
-            time.sleep(2 ** (attempt + 1))
-            if attempt == 2: raise
+    try:
+        if provider == "ollama":
+            stream = ollama.chat(
+                model=model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message}
+                ],
+                stream=True
+            )
+            for chunk in stream:
+                if 'message' in chunk and 'content' in chunk['message']:
+                    yield chunk['message']['content']
+        else:
+            client = get_llm_client()
+            stream = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message}
+                ],
+                stream=True
+            )
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+    except Exception as e:
+        print(f"LLM Stream Error ({provider}): {e}")
+        raise
 
 def detect_phase_transition(history: List[Dict[str, str]], current_phase: str) -> str:
-    # A simple state machine logic to advance phases based on message count or keywords
     if current_phase == "INTRO" and len(history) >= 2:
         return "PROBLEM PRESENTATION"
     if current_phase == "PROBLEM PRESENTATION" and len(history) >= 4:
