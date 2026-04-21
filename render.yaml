@@ -12,7 +12,7 @@ services:
       - key: LLM_PROVIDER
         value: cloud
       - key: LLM_MODEL
-        value: mistral-7b-32768
+        value: llama-3.1-8b-instant
       - key: LLM_BASE_URL
         value: https://api.groq.com/openai/v1
       # The following should be set in the Render Dashboard for security

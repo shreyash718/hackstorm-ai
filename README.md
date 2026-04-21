@@ -2,7 +2,7 @@
 
 ### AI-Powered B2B Technical Assessment Platform
 
-**HackStorm AI** is a state-of-the-art platform designed to revolutionize technical hiring. By leveraging Google Gemini's advanced LLM capabilities, it provides a human-like, interactive interview experience that goes beyond simple code execution.
+**HackStorm AI** is a state-of-the-art platform designed to revolutionize technical hiring. By leveraging advanced LLM capabilities (Gemini, Groq, or local Ollama), it provides a human-like, interactive interview experience that goes beyond simple code execution.
 
 ---
 
@@ -11,7 +11,8 @@
 ### 🤖 AI Interviewer
 - **Interactive DSA Sessions**: Real-time streaming chat that guides candidates through problem-solving phases.
 - **Phase Detection**: Intelligent tracking of interview stages (Introduction, Brainstorming, Coding, Optimization).
-- **Voice Interaction**: Built-in voice-activity detection and text-to-speech for a natural conversational flow.
+- **Flexible LLM Support**: Run locally with **Ollama** (offline) or in the cloud with **Groq/Gemini** (high speed).
+- **Voice Interaction**: Built-in voice-activity detection and browser-native text-to-speech for a natural conversational flow.
 
 ### 📊 Recruiter Dashboard
 - **Custom Assessments**: Create tailored interview sets for different roles.
@@ -22,15 +23,18 @@
 - **Admin Panel**: Manage the entire platform, users, and problem bank.
 - **FastAPI Backend**: High-performance, scalable API with built-in Swagger UI.
 - **Next.js Frontend**: Responsive, modern UI with dark mode support.
-- **Admin Protection**: Multi-layer security including IP-based whitelisting and hardware-specific device authorization (Laptop Link).
+- **Deployment Ready**: Optimized for Render and Vercel with a single-command blueprint.
 
 ---
 
 ## 🏗️ Tech Stack
 
 - **Frontend**: Next.js 14, React, Tailwind CSS, Framer Motion, Monaco Editor.
-- **Backend**: FastAPI (Python), Supabase (Auth & PostgreSQL), Google Gemini Pro.
-- **Infrastructure**: Vercel (Frontend), Render (Backend), Supabase (Storage/Auth).
+- **Backend**: FastAPI (Python), Supabase (Auth & PostgreSQL).
+- **AI Models**: 
+  - **Local**: Ollama (Mistral/Qwen).
+  - **Cloud**: Groq (Llama 3.1/3.3) or Google Gemini.
+- **Infrastructure**: Render (Full-stack Deployment), Supabase (Storage/Auth).
 
 ---
 
@@ -39,8 +43,9 @@
 ### Prerequisites
 - Python 3.9+
 - Node.js 18+
-- Supabase Account & Project
-- Google Gemini API Key
+- Supabase Account
+- (Optional) Ollama installed for offline use
+- (Optional) Groq API Key for high-speed cloud use
 
 ### Backend Setup
 1. Navigate to `backend/`:
@@ -50,7 +55,7 @@
    source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
-2. Configure `.env` (use `.env.example` as a template).
+2. Configure `.env` with your `LLM_PROVIDER` (ollama or cloud).
 3. Start the server:
    ```bash
    uvicorn main:app --reload

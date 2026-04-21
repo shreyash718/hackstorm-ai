@@ -9,7 +9,7 @@ HackStorm AI is built using a modern decoupled architecture:
 - **Backend**: A FastAPI server handling logic, database interactions, and AI orchestration.
 - **Database**: PostgreSQL (via Supabase) for structured data storage.
 - **Authentication**: Supabase Auth for user management.
-- **AI Engine**: Google Gemini Pro for real-time interviewing and candidate evaluation.
+- **AI Engine**: A flexible LLM bridge supporting **Ollama** (Local), **Groq** (Cloud), and **Google Gemini**.
 
 ---
 
@@ -26,10 +26,10 @@ Built with **Next.js 14** using the **App Router** for optimized routing and ser
 - `components/`: Reusable React components.
   - `ChatPanel`: Interactive AI chat interface.
   - `CodeEditor`: Monaco-based code editor.
-  - `VoiceController`: Manages voice interaction and TTS.
+  - `VoiceController`: Manages voice interaction and speech recognition.
 
 ### Voice & Interaction
-The `VoiceController` uses the Web Speech API for Text-to-Speech (TTS) and custom Voice Activity Detection (VAD) logic to provide a hands-free interview experience.
+The `VoiceController` uses the **Web Speech API** (`window.speechSynthesis`) for Text-to-Speech (TTS) and `window.webkitSpeechRecognition` for candidate input. This ensures low-latency voice interaction without requiring a dedicated cloud TTS API.
 
 ---
 
@@ -40,31 +40,25 @@ Built with **FastAPI**, providing high-performance asynchronous endpoints.
 
 ### Key Modules
 - `main.py`: Entry point and API route definitions.
-- `interviewer.py`: Logic for building AI prompts and handling phase transitions.
-- `evaluator.py`: Generates comprehensive candidate reports using Gemini.
+- `interviewer.py`: Logic for building AI prompts and handling phase transitions. Supports multiple LLM providers via a unified interface.
+- `evaluator.py`: Generates comprehensive candidate reports.
 - `database.py`: Data access layer for PostgreSQL/Supabase.
 - `models.py`: Pydantic models for request/response validation.
 
-### Interview Lifecycle
+### LLM Orchestration
+The system can be configured via environment variables to use different LLM backends:
+- **Ollama**: For local, offline development using models like Mistral or Llama.
+- **Groq**: For production-grade, high-speed inference (Llama 3.1 8B).
+- **Gemini**: For complex evaluation and fallback logic.
+
+---
+
+## AI Interaction Lifecycle
 1. **INTRO**: AI introduces the problem and sets the stage.
 2. **BRAINSTORM**: Candidate explains their approach; AI provides hints and clarifies requirements.
 3. **CODING**: Candidate implements the solution; AI monitors and asks clarifying questions.
 4. **OPTIMIZATION**: AI challenges the candidate to improve time/space complexity.
 5. **COMPLETED**: Interview ends, and the evaluation pipeline starts.
-
----
-
-## AI Integration
-
-### Prompt Engineering
-The system uses sophisticated system prompts that dynamically incorporate:
-- Problem description and constraints.
-- Current interview phase.
-- Real-time code state.
-- Chat history.
-
-### Phase Detection
-The backend automatically detects when a candidate should move to the next phase based on their responses and code progress, ensuring a structured yet flexible interview flow.
 
 ---
 
