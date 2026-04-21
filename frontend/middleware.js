@@ -20,13 +20,11 @@ export function middleware(request) {
     const clientIp = forwarded?.split(',')[0]?.trim() || realIp || '127.0.0.1';
 
     if (!allowedIps.includes(clientIp)) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Access denied. Your IP is not authorized.' }),
-        { 
-          status: 403, 
-          headers: { 'Content-Type': 'application/json' } 
-        }
-      );
+      // Redirect to our custom 403 page with the IP info
+      const url = request.nextUrl.clone();
+      url.pathname = '/forbidden';
+      url.searchParams.set('ip', clientIp);
+      return NextResponse.rewrite(url);
     }
   }
 
