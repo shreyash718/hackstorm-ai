@@ -1,11 +1,20 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FileWarning, Home, ArrowLeft, RefreshCw, HelpCircle } from 'lucide-react';
+import { FileWarning, Home, ArrowLeft, RefreshCw, HelpCircle, Fingerprint } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function BadRequest() {
+  const [ip, setIp] = useState('Detecting...');
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ip`)
+      .then(res => res.json())
+      .then(data => setIp(data.ip))
+      .catch(err => setIp('Unknown'));
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-300 px-6">
 
@@ -84,6 +93,13 @@ export default function BadRequest() {
               <span className="text-indigo-500 font-bold">03.</span> Try clearing your browser cache or cookies.
             </li>
           </ul>
+          <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-gray-400">
+              <Fingerprint size={12} />
+              <span className="text-[9px] font-mono uppercase tracking-tighter">Connection IP</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-gray-500">{ip}</span>
+          </div>
         </div>
 
         {/* Action buttons */}

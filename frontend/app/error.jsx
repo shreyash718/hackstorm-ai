@@ -1,14 +1,19 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Home, RotateCcw, Bug, FileWarning } from 'lucide-react';
+import { AlertTriangle, Home, RotateCcw, Bug, FileWarning, Fingerprint } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function ErrorPage({ error, reset }) {
-  
+  const [ip, setIp] = useState('Detecting...');
+
   useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ip`)
+      .then(res => res.json())
+      .then(data => setIp(data.ip))
+      .catch(err => setIp('Unknown'));
     console.error('Application error:', error);
   }, [error]);
 
@@ -99,9 +104,16 @@ export default function ErrorPage({ error, reset }) {
             <Bug size={14} className={`text-${colorClass}-500`} />
             <span className={`text-[10px] font-mono text-${colorClass}-500 tracking-widest uppercase font-bold`}>Diagnostic Info</span>
           </div>
-          <p className="font-mono text-xs text-gray-600 dark:text-gray-400 break-all leading-relaxed">
+          <p className="font-mono text-xs text-gray-600 dark:text-gray-400 break-all leading-relaxed mb-4">
             {error?.message || 'An unexpected error occurred during execution.'}
           </p>
+          <div className={`pt-3 border-t border-${colorClass}-500/10 flex items-center justify-between`}>
+            <div className="flex items-center gap-1.5 text-gray-400">
+              <Fingerprint size={12} />
+              <span className="text-[9px] font-mono uppercase tracking-tighter">Node IP</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-gray-500">{ip}</span>
+          </div>
         </div>
 
         {/* Action buttons */}

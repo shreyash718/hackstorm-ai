@@ -1,11 +1,20 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Code2, Ghost, Home, ArrowLeft, Search } from 'lucide-react';
+import { Code2, Ghost, Home, ArrowLeft, Search, Fingerprint } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function NotFound() {
+  const [ip, setIp] = useState('Detecting...');
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/ip`)
+      .then(res => res.json())
+      .then(data => setIp(data.ip))
+      .catch(err => setIp('Unknown'));
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-300 px-6">
 
@@ -81,6 +90,13 @@ export default function NotFound() {
             <p className="text-gray-500 dark:text-gray-400">
               <span className="text-blue-500">$</span> <motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.8, repeat: Infinity }}>▋</motion.span>
             </p>
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-gray-400">
+              <Fingerprint size={12} />
+              <span className="text-[9px] font-mono uppercase tracking-tighter">Network IP</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-gray-400">{ip}</span>
           </div>
         </div>
 
