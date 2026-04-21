@@ -86,6 +86,40 @@ def get_ip(request: Request):
         client_ip = request.client.host
     return {"ip": client_ip}
 
+@app.post("/admin/tts")
+async def generate_tts(request: Request):
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        if not text:
+            return JSONResponse(status_code=400, content={"error": "No text provided"})
+            
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        # Using the TTS-capable model as requested
+        model = genai.GenerativeModel("gemini-3.1-flash-tts-preview")
+        
+        # Requesting audio output specifically
+        response = model.generate_content(
+            f"Please read this text aloud as a professional interviewer: {text}",
+            generation_config={"response_mime_type": "audio/wav"}
+        )
+        
+        # The SDK returns the audio bytes in the response parts
+        # This is a simplified version; in a real scenario, we'd stream the bits
+        audio_data = None
+        for part in response.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.mime_type == "audio/wav":
+                audio_data = part.inline_data.data
+                break
+        
+        if not audio_data:
+            return JSONResponse(status_code=500, content={"error": "No audio generated"})
+            
+        return Response(content=audio_data, media_type="audio/wav")
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/health/db")
 def health_db():
     import traceback

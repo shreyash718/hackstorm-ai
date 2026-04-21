@@ -89,3 +89,8 @@ export const removeRecruiter = async (adminId, targetId) => {
   const response = await api.delete(`/admin/recruiters/${targetId}?user_id=${adminId}`);
   return response.data;
 };
+
+export const generateTTS = async (text) => {
+  const response = await api.post('/admin/tts', { text }, { responseType: 'blob' });
+  return response.data;
+};

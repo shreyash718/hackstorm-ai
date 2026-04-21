@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchProblem, sendChatMessage, streamChatMessage, evaluateInterview } from '@/lib/api';
+import { fetchProblem, sendChatMessage, streamChatMessage, evaluateInterview, generateTTS } from '@/lib/api';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { supabase } from '@/lib/supabase';
 import CodeEditor from '@/components/CodeEditor';
@@ -23,18 +23,20 @@ const STARTER_CODE = {
   }
 };
 
-function speak(text, onEnd) {
-  console.log("Speaking:", text);
-  const utter = new SpeechSynthesisUtterance(text);
-  
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Neural"))
-  ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
-  
-  if (preferred) utter.voice = preferred;
-  utter.onend = onEnd || null;
-  window.speechSynthesis.speak(utter);
+async function speak(text, onEnd) {
+  try {
+    const audioBlob = await generateTTS(text);
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      if (onEnd) onEnd();
+    };
+    await audio.play();
+  } catch (err) {
+    console.error("TTS Playback Error:", err);
+    if (onEnd) onEnd();
+  }
 }
 
 export default function InterviewScreen() {
