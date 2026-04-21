@@ -86,8 +86,20 @@ def get_ip(request: Request):
         client_ip = request.client.host
     return {"ip": client_ip}
 
+import io
+import wave
 from google import genai as new_genai
 from google.genai import types as new_types
+
+def wrap_pcm_in_wav(pcm_data, channels=1, rate=24000, sample_width=2):
+    """Wraps raw PCM data in a WAV container."""
+    with io.BytesIO() as wav_io:
+        with wave.open(wav_io, "wb") as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(sample_width)
+            wf.setframerate(rate)
+            wf.writeframes(pcm_data)
+        return wav_io.getvalue()
 
 @app.post("/admin/tts")
 async def generate_tts(request: Request):
@@ -116,15 +128,18 @@ async def generate_tts(request: Request):
             )
         )
         
-        # Extract audio data according to the new SDK structure
-        audio_data = response.candidates[0].content.parts[0].inline_data.data
+        # Extract raw PCM data
+        raw_pcm = response.candidates[0].content.parts[0].inline_data.data
         
-        if not audio_data:
-            print("Failed to generate audio data with new SDK.")
+        if not raw_pcm:
+            print("No audio data in Gemini response.")
             return JSONResponse(status_code=500, content={"error": "No audio data in response"})
             
-        print(f"Successfully generated {len(audio_data)} bytes of audio (Kore).")
-        return Response(content=audio_data, media_type="audio/wav")
+        # Wrap in WAV header so browser can play it
+        wav_data = wrap_pcm_in_wav(raw_pcm)
+            
+        print(f"Successfully generated {len(wav_data)} bytes of formatted WAV (Kore).")
+        return Response(content=wav_data, media_type="audio/wav")
     except Exception as e:
         import traceback
         traceback.print_exc()
