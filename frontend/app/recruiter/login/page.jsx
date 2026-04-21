@@ -188,9 +188,8 @@ export default function RecruiterLoginPage() {
   };
 
   const handleGoogleAuth = async () => {
-    // Redirect to student domain's auth initiator page
-    // This ensures localStorage is set on the same domain as the callback
-    window.location.href = 'https://hackstorm-ai.vercel.app/auth/google?next=/recruiter/dashboard';
+    // Navigate to the OAuth initiator page which sets localStorage + starts Google flow
+    window.location.href = '/auth/google?next=/recruiter/dashboard';
   };
 
   return (

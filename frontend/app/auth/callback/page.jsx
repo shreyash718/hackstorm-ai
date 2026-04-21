@@ -7,8 +7,6 @@ import { API_URL } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
-const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
-
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,7 +20,7 @@ function AuthCallbackContent() {
 
       const userId = session.user.id;
 
-      // Get redirect destination from localStorage (set by /auth/google page on this same domain)
+      // Get redirect destination from localStorage (set by /auth/google on this same domain)
       const storedRedirect = localStorage.getItem('redirectAfterAuth');
       const paramRedirect = searchParams.get('next');
       const next = storedRedirect || paramRedirect || '/';
@@ -44,13 +42,8 @@ function AuthCallbackContent() {
         } catch (err) {
           console.error('Error during recruiter check/make:', err);
         }
-
-        // Redirect to the recruiter domain
-        window.location.href = `${RECRUITER_DOMAIN}${next}`;
-        return;
       }
 
-      // Student flow: stay on this domain
       router.push(next);
     };
 

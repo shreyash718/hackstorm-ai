@@ -44,7 +44,6 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const RECRUITER_DOMAIN = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app';
     let redirectHandled = false;
 
     const handlePostOAuthRedirect = async (session) => {
@@ -56,7 +55,7 @@ export default function Home() {
       redirectHandled = true;
       localStorage.removeItem('redirectAfterAuth');
 
-      // If recruiter flow: register as recruiter + redirect to recruiter domain
+      // If recruiter flow: register as recruiter + redirect to dashboard
       if (redirectPath.includes('recruiter')) {
         try {
           const res = await fetch(`${API_URL}/recruiter/check/${session.user.id}`);
@@ -71,8 +70,8 @@ export default function Home() {
         } catch (err) {
           console.error('Error during recruiter registration:', err);
         }
-        // Hard redirect to recruiter domain
-        window.location.href = `${RECRUITER_DOMAIN}${redirectPath}`;
+        // Redirect to recruiter dashboard (same domain)
+        window.location.href = redirectPath;
         return;
       }
       
@@ -167,7 +166,7 @@ export default function Home() {
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'} 
+              onClick={() => router.push('/recruiter')} 
               className="text-sm font-medium text-secondary hover:text-primary transition-colors"
             >
               For Recruiters
@@ -224,7 +223,7 @@ export default function Home() {
               <motion.button 
                 whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(139,92,246,0.4)" }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'}
+                onClick={() => router.push('/recruiter')}
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-colors"
               >
                 I'm a Recruiter <ArrowRight size={20} />
@@ -404,7 +403,7 @@ export default function Home() {
                 <motion.button 
                   whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(139,92,246,0.4)" }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => window.location.href = 'https://hackstorm-jiml3ft8o-shreyashmishra700-4666s-projects.vercel.app/recruiter'}
+                  onClick={() => router.push('/recruiter')}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-colors"
                 >
                   Recruiter Access
