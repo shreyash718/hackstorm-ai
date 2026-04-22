@@ -392,12 +392,28 @@ def delete_problem_in_db(problem_id: int):
     conn = get_db_connection()
     if not conn: return False
     try:
+        # Disable autocommit for transaction atomicity
+        conn.autocommit = False
         with conn.cursor() as cur:
-            # First delete related rows in assessment_questions to avoid FK constraints
+            # 1. Delete reports associated with sessions of this problem
+            cur.execute("""
+                DELETE FROM reports 
+                WHERE session_id IN (SELECT id FROM sessions WHERE problem_id = %s)
+            """, (problem_id,))
+            
+            # 2. Delete sessions associated with this problem
+            cur.execute("DELETE FROM sessions WHERE problem_id = %s", (problem_id,))
+            
+            # 3. Delete from assessment_questions (linking table)
             cur.execute("DELETE FROM assessment_questions WHERE problem_id = %s", (problem_id,))
+            
+            # 4. Finally delete the problem
             cur.execute("DELETE FROM problems WHERE id = %s", (problem_id,))
+            
+            conn.commit()
             return True
     except Exception as e:
+        conn.rollback()
         print(f"Error deleting problem: {e}")
         return False
     finally:
