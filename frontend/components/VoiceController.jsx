@@ -13,6 +13,18 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const inputRef = useRef('');
   const shouldRestartRef = useRef(false);
 
+  const [autoListen, setAutoListen] = useState(true);
+
+  // Auto-listen logic: When AI stops speaking, start listening automatically
+  useEffect(() => {
+    if (voiceMode && autoListen && !isSpeaking && !loading && !listening && !input.trim()) {
+      const timer = setTimeout(() => {
+        startListening();
+      }, 300); // Small delay to feel natural
+      return () => clearTimeout(timer);
+    }
+  }, [isSpeaking, loading, voiceMode, autoListen, listening, input, startListening]);
+
   useEffect(() => {
     inputRef.current = input;
   }, [input]);
@@ -264,6 +276,18 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
                 {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : listening ? 'Listening...' : 'Tap to speak'}
             </span>
           </div>
+
+          {/* Auto-Listen Toggle */}
+          <button 
+            onClick={() => setAutoListen(!autoListen)}
+            className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-bold tracking-tighter transition-all ${
+              autoListen 
+                ? 'bg-blue-600/10 border-blue-500/50 text-blue-600' 
+                : 'bg-gray-100 border-gray-300 text-gray-500'
+            }`}
+          >
+            {autoListen ? '🤖 AUTO-LISTEN ON' : '🖐️ MANUAL TAP MODE'}
+          </button>
 
           {/* Show transcript preview */}
           {input && (
