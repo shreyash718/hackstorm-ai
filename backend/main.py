@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import datetime
 
 from models import ChatRequest, EvaluateRequest, Session, CreateProblemRequest
-from problems import get_all_problems, get_problem
+from problems import get_all_problems, get_problem, add_problem
 from interviewer import build_system_prompt, call_gemini, call_gemini_stream, detect_phase_transition, detect_interview_complete
 from fastapi.responses import StreamingResponse
 import json
@@ -427,8 +427,23 @@ def remove_recruiter_admin(target_id: str, user_id: str):
     revoke_recruiter(target_id)
     return {"message": "Recruiter revoked"}
 
-from problems import add_problem
-
+@app.post("/admin/problems")
+def create_problem(req: CreateProblemRequest):
+    if not check_admin(req.user_id):
+        raise HTTPException(status_code=403, detail="Not authorized as admin")
+    
+    problem_id = add_problem({
+        "title": req.title,
+        "difficulty": req.difficulty,
+        "description": req.description,
+        "examples": req.examples,
+        "constraints": req.constraints,
+        "tags": req.tags
+    })
+    
+    if not problem_id:
+        raise HTTPException(status_code=500, detail="Failed to add problem")
+        
     return {"message": "Problem added successfully", "problem_id": problem_id}
 
 @app.put("/admin/problems/{problem_id}")
