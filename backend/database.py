@@ -253,11 +253,11 @@ def create_assessment_in_db(assessment_id: str, recruiter_id: str, title: str, q
             for q in questions:
                 # 1. Create the custom problem
                 cur.execute("""
-                    INSERT INTO problems (title, difficulty, description, examples, constraints, tags, created_by)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                    INSERT INTO problems (title, difficulty, description, examples, constraints, tags, created_by, is_public)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """, (
                     q.title, q.difficulty, q.description, json.dumps(q.examples),
-                    q.constraints, q.tags, recruiter_id
+                    q.constraints, q.tags, recruiter_id, False # Private by default
                 ))
                 problem_id = cur.fetchone()['id']
                 
@@ -345,6 +345,73 @@ def delete_user_by_id(user_id: str):
             return True
     except Exception as e:
         print(f"Error deleting user: {e}")
+        return False
+    finally:
+        conn.close()
+
+# ==========================================
+# PROBLEM OPERATIONS (ADMIN)
+# ==========================================
+
+def get_all_problems_db():
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM problems ORDER BY id DESC")
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching problems: {e}")
+        return []
+    finally:
+        conn.close()
+
+def update_problem_in_db(problem_id: int, data: dict):
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE problems SET 
+                    title = %s, difficulty = %s, description = %s, 
+                    examples = %s, constraints = %s, tags = %s
+                WHERE id = %s
+            """, (
+                data["title"], data["difficulty"], data["description"],
+                json.dumps(data["examples"]), data["constraints"], data["tags"],
+                problem_id
+            ))
+            return True
+    except Exception as e:
+        print(f"Error updating problem: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_problem_in_db(problem_id: int):
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            # First delete related rows in assessment_questions to avoid FK constraints
+            cur.execute("DELETE FROM assessment_questions WHERE problem_id = %s", (problem_id,))
+            cur.execute("DELETE FROM problems WHERE id = %s", (problem_id,))
+            return True
+    except Exception as e:
+        print(f"Error deleting problem: {e}")
+        return False
+    finally:
+        conn.close()
+
+def toggle_problem_visibility_db(problem_id: int, is_public: bool):
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE problems SET is_public = %s WHERE id = %s", (is_public, problem_id))
+            return True
+    except Exception as e:
+        print(f"Error toggling problem visibility: {e}")
         return False
     finally:
         conn.close()

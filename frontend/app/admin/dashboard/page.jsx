@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { fetchAdminDashboard, addProblem, addUser, deleteUser, addAdmin, removeAdmin, addRecruiter, removeRecruiter } from '@/lib/api';
+import { fetchAdminDashboard, addProblem, updateProblem, deleteProblem, toggleProblemVisibility, addUser, deleteUser, addAdmin, removeAdmin, addRecruiter, removeRecruiter } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Trash2, UserPlus, Shield, Users, Database, LayoutTemplate, UserCog, Building2, LogOut } from 'lucide-react';
+import { Trash2, UserPlus, Shield, Users, Database, LayoutTemplate, UserCog, Building2, LogOut, Edit, Eye, EyeOff, Globe, Lock } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -23,8 +23,10 @@ export default function AdminDashboardPage() {
   // Forms
   const [newProblem, setNewProblem] = useState({
     title: '', difficulty: 'Medium', description: '', constraints: '', tags: '',
-    examples: '[{"input": "nums = [2,7,11,15], target = 9", "output": "[0,1]"}]'
+    examples: '[{"input": "nums = [2,7,11,15], target = 9", "output": "[0,1]"}]',
+    is_public: true
   });
+  const [editingProblemId, setEditingProblemId] = useState(null);
   const [newUser, setNewUser] = useState({ email: '', password: '' });
   const [targetId, setTargetId] = useState('');
 
@@ -63,17 +65,41 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await addProblem({
+      const problemData = {
         title: newProblem.title, difficulty: newProblem.difficulty,
         description: newProblem.description, constraints: newProblem.constraints,
         tags: newProblem.tags.split(',').map(t => t.trim()),
-        examples: JSON.parse(newProblem.examples), user_id: user.id
-      });
-      alert('Record inserted successfully.');
+        examples: JSON.parse(newProblem.examples), user_id: user.id,
+        is_public: newProblem.is_public
+      };
+
+      if (editingProblemId) {
+        await updateProblem(user.id, editingProblemId, problemData);
+        alert('Record updated successfully.');
+      } else {
+        await addProblem(problemData);
+        alert('Record inserted successfully.');
+      }
+      
       setIsProblemModalOpen(false);
+      setEditingProblemId(null);
       await loadDashboard();
-    } catch (err) { alert("Data entry failed."); } 
+    } catch (err) { alert("Operation failed."); } 
     finally { setSubmitting(false); }
+  };
+
+  const openEditModal = (problem) => {
+    setEditingProblemId(problem.id);
+    setNewProblem({
+      title: problem.title,
+      difficulty: problem.difficulty,
+      description: problem.description,
+      constraints: problem.constraints,
+      tags: Array.isArray(problem.tags) ? problem.tags.join(', ') : (problem.tags || ''),
+      examples: typeof problem.examples === 'string' ? problem.examples : JSON.stringify(problem.examples),
+      is_public: problem.is_public
+    });
+    setIsProblemModalOpen(true);
   };
 
   if (loading) return (
@@ -173,6 +199,10 @@ export default function AdminDashboardPage() {
                             <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 p-5 rounded-md shadow-sm flex flex-col">
                                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Average Evaluation Score</span>
                                 <span className="text-3xl font-bold text-gray-900 dark:text-white">{data.stats.average_score}%</span>
+                            </div>
+                            <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 p-5 rounded-md shadow-sm flex flex-col">
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Repository Items</span>
+                                <span className="text-3xl font-bold text-gray-900 dark:text-white">{data.stats.total_problems}</span>
                             </div>
                         </div>
 
@@ -345,16 +375,73 @@ export default function AdminDashboardPage() {
                     <div className="space-y-6 animate-in fade-in duration-300">
                         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4">
                             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Assessment Database</h2>
-                        </div>
-                        <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 rounded-md p-12 text-center shadow-sm flex flex-col items-center">
-                            <div className="w-16 h-16 bg-blue-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                                <Database size={32} className="text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">Repository Management</h3>
-                            <p className="text-sm text-gray-500 max-w-sm mb-6">Provision new algorithmic assessment challenges to the global platform repository.</p>
-                            <button onClick={() => setIsProblemModalOpen(true)} className="bg-blue-700 hover:bg-blue-800 text-white font-medium px-6 py-2 rounded-md transition-colors text-sm">
-                                Provision New Assessment
+                            <button onClick={() => { setEditingProblemId(null); setNewProblem({ title: '', difficulty: 'Medium', description: '', constraints: '', tags: '', examples: '[]', is_public: true }); setIsProblemModalOpen(true); }} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-md font-medium text-sm flex items-center gap-2 shadow-sm transition-colors">
+                                <Database size={16}/> Provision New Assessment
                             </button>
+                        </div>
+
+                        <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 rounded-md shadow-sm overflow-hidden">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                                        <th className="px-6 py-3">ID</th>
+                                        <th className="px-6 py-3">Title / Difficulty</th>
+                                        <th className="px-6 py-3">Source</th>
+                                        <th className="px-6 py-3">Visibility</th>
+                                        <th className="px-6 py-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                    {data.problems.map((p, i) => (
+                                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                            <td className="px-6 py-4 font-mono text-xs text-gray-500">{p.id}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium text-gray-900 dark:text-gray-100">{p.title}</div>
+                                                <div className={`text-[10px] font-bold uppercase mt-0.5 ${p.difficulty === 'Easy' ? 'text-green-600' : p.difficulty === 'Medium' ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                    {p.difficulty}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {p.created_by ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 font-medium">
+                                                            <Building2 size={12}/> Recruiter
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-mono">{p.created_by.split('-')[0]}...</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                                        <Shield size={12}/> Platform
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <button 
+                                                    onClick={() => handleAction(toggleProblemVisibility, p.id, !p.is_public)}
+                                                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${
+                                                        p.is_public 
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    {p.is_public ? <Globe size={10}/> : <Lock size={10}/>}
+                                                    {p.is_public ? 'Public' : 'Private'}
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-3">
+                                                    <button onClick={() => openEditModal(p)} className="text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors">
+                                                        <Edit size={16}/>
+                                                    </button>
+                                                    <button onClick={() => { if(confirm(`Confirm deletion of problem "${p.title}"?`)) handleAction(deleteProblem, p.id) }} className="text-gray-600 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors">
+                                                        <Trash2 size={16}/>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
@@ -395,7 +482,7 @@ export default function AdminDashboardPage() {
         <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#111827] border border-gray-200 dark:border-gray-800 w-full max-w-2xl rounded-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex justify-between items-center">
-              <h2 className="font-semibold text-gray-900 dark:text-white">Provision Assessment Definition</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-white">{editingProblemId ? 'Modify Assessment Definition' : 'Provision Assessment Definition'}</h2>
               <button onClick={() => setIsProblemModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
             </div>
             
@@ -435,10 +522,23 @@ export default function AdminDashboardPage() {
                 <textarea required rows={3} value={newProblem.examples} onChange={e => setNewProblem({...newProblem, examples: e.target.value})} className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-xs font-mono outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
               </div>
 
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-md border border-gray-200 dark:border-gray-800">
+                <input 
+                  type="checkbox" 
+                  id="is_public" 
+                  checked={newProblem.is_public} 
+                  onChange={e => setNewProblem({...newProblem, is_public: e.target.checked})}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="is_public" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Globe size={14}/> Make this problem public on the repository
+                </label>
+              </div>
+
               <div className="flex justify-end gap-3 mt-2 border-t border-gray-200 dark:border-gray-800 pt-4">
                 <button type="button" onClick={() => setIsProblemModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">Cancel</button>
                 <button type="submit" disabled={submitting} className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium px-6 py-2 rounded-md disabled:opacity-50 transition-colors">
-                  {submitting ? 'Processing...' : 'Commit Record'}
+                  {submitting ? 'Processing...' : (editingProblemId ? 'Update Record' : 'Commit Record')}
                 </button>
               </div>
             </form>

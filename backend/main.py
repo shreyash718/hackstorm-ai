@@ -15,7 +15,8 @@ from database import (
     get_all_sessions, get_all_reports, get_all_users, delete_user_by_id,
     get_all_admins, make_admin, revoke_admin, get_all_recruiters,
     check_recruiter, make_recruiter, revoke_recruiter, create_assessment_in_db,
-    get_assessments_by_recruiter, get_assessment_details
+    get_assessments_by_recruiter, get_assessment_details,
+    get_all_problems_db, update_problem_in_db, delete_problem_in_db, toggle_problem_visibility_db
 )
 from supabase import create_client, Client
 import os
@@ -342,6 +343,7 @@ def get_admin_dashboard(user_id: str):
     users = get_all_users()
     admins = get_all_admins()
     recruiters = get_all_recruiters()
+    problems = get_all_problems_db()
     
     # Calculate some basic stats
     total_interviews = len(sessions)
@@ -352,13 +354,15 @@ def get_admin_dashboard(user_id: str):
         "stats": {
             "total_interviews": total_interviews,
             "completed_interviews": completed_interviews,
-            "average_score": round(avg_score, 1)
+            "average_score": round(avg_score, 1),
+            "total_problems": len(problems)
         },
         "sessions": sessions,
         "reports": reports,
         "users": users,
         "admins": admins,
-        "recruiters": recruiters
+        "recruiters": recruiters,
+        "problems": problems
     }
 
 from pydantic import BaseModel
@@ -425,12 +429,14 @@ def remove_recruiter_admin(target_id: str, user_id: str):
 
 from problems import add_problem
 
-@app.post("/admin/problems")
-def create_problem(req: CreateProblemRequest):
+    return {"message": "Problem added successfully", "problem_id": problem_id}
+
+@app.put("/admin/problems/{problem_id}")
+def update_problem(problem_id: int, req: CreateProblemRequest):
     if not check_admin(req.user_id):
         raise HTTPException(status_code=403, detail="Not authorized as admin")
     
-    problem_id = add_problem({
+    success = update_problem_in_db(problem_id, {
         "title": req.title,
         "difficulty": req.difficulty,
         "description": req.description,
@@ -439,10 +445,36 @@ def create_problem(req: CreateProblemRequest):
         "tags": req.tags
     })
     
-    if not problem_id:
-        raise HTTPException(status_code=500, detail="Failed to add problem")
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update problem")
         
-    return {"message": "Problem added successfully", "problem_id": problem_id}
+    return {"message": "Problem updated successfully"}
+
+@app.delete("/admin/problems/{problem_id}")
+def delete_problem(problem_id: int, user_id: str):
+    if not check_admin(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized as admin")
+    
+    success = delete_problem_in_db(problem_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete problem")
+        
+    return {"message": "Problem deleted successfully"}
+
+class VisibilityRequest(BaseModel):
+    user_id: str
+    is_public: bool
+
+@app.patch("/admin/problems/{problem_id}/visibility")
+def toggle_visibility(problem_id: int, req: VisibilityRequest):
+    if not check_admin(req.user_id):
+        raise HTTPException(status_code=403, detail="Not authorized as admin")
+    
+    success = toggle_problem_visibility_db(problem_id, req.is_public)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update visibility")
+        
+    return {"message": "Visibility updated successfully"}
 
 from models import MakeRecruiterRequest, CreateAssessmentRequest
 

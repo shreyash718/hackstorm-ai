@@ -6,6 +6,21 @@ def get_all_problems():
     if not conn: return []
     try:
         with conn.cursor() as cur:
+            # Only return public problems for the main list
+            cur.execute("SELECT * FROM problems WHERE is_public = TRUE ORDER BY id ASC")
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching problems: {e}")
+        return []
+    finally:
+        conn.close()
+
+def get_all_problems_admin():
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            # Admin gets everything
             cur.execute("SELECT * FROM problems ORDER BY id ASC")
             return cur.fetchall()
     except Exception as e:
@@ -33,8 +48,8 @@ def add_problem(data: dict):
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO problems (title, difficulty, description, examples, constraints, tags)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO problems (title, difficulty, description, examples, constraints, tags, is_public)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 data["title"],
@@ -42,7 +57,8 @@ def add_problem(data: dict):
                 data["description"],
                 json.dumps(data["examples"]),
                 data["constraints"],
-                data["tags"]
+                data["tags"],
+                data.get("is_public", True)
             ))
             new_id = cur.fetchone()["id"]
             return new_id

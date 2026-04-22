@@ -60,6 +60,21 @@ export const addProblem = async (data) => {
   return response.data;
 };
 
+export const updateProblem = async (adminId, problemId, data) => {
+  const response = await api.put(`/admin/problems/${problemId}`, { ...data, user_id: adminId });
+  return response.data;
+};
+
+export const deleteProblem = async (adminId, problemId) => {
+  const response = await api.delete(`/admin/problems/${problemId}?user_id=${adminId}`);
+  return response.data;
+};
+
+export const toggleProblemVisibility = async (adminId, problemId, isPublic) => {
+  const response = await api.patch(`/admin/problems/${problemId}/visibility`, { user_id: adminId, is_public: isPublic });
+  return response.data;
+};
+
 export const addUser = async (adminId, email, password) => {
   const response = await api.post('/admin/users', { user_id: adminId, email, password });
   return response.data;
