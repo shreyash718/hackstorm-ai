@@ -75,6 +75,16 @@ export const toggleProblemVisibility = async (adminId, problemId, isPublic) => {
   return response.data;
 };
 
+export const sendAdminOTP = async (userId) => {
+  const response = await api.post('/admin/otp/send', { user_id: userId });
+  return response.data;
+};
+
+export const verifyAdminOTP = async (userId, otpCode) => {
+  const response = await api.post('/admin/otp/verify', { user_id: userId, otp_code: otpCode });
+  return response.data;
+};
+
 export const addUser = async (adminId, email, password) => {
   const response = await api.post('/admin/users', { user_id: adminId, email, password });
   return response.data;

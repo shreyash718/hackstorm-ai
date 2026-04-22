@@ -16,7 +16,8 @@ from database import (
     get_all_admins, make_admin, revoke_admin, get_all_recruiters,
     check_recruiter, make_recruiter, revoke_recruiter, create_assessment_in_db,
     get_assessments_by_recruiter, get_assessment_details,
-    get_all_problems_db, update_problem_in_db, delete_problem_in_db, toggle_problem_visibility_db
+    get_all_problems_db, update_problem_in_db, delete_problem_in_db, toggle_problem_visibility_db,
+    save_otp, verify_otp, get_user_email_by_id
 )
 from supabase import create_client, Client
 import os
@@ -490,6 +491,65 @@ def toggle_visibility(problem_id: int, req: VisibilityRequest):
         raise HTTPException(status_code=500, detail="Failed to update visibility")
         
     return {"message": "Visibility updated successfully"}
+
+import random
+import smtplib
+from email.mime.text import MIMEText
+
+class OTPSendRequest(BaseModel):
+    user_id: str
+
+@app.post("/admin/otp/send")
+def send_admin_otp(req: OTPSendRequest):
+    if not check_admin(req.user_id):
+        raise HTTPException(status_code=403, detail="Not an authorized admin")
+    
+    email = get_user_email_by_id(req.user_id)
+    if not email:
+        raise HTTPException(status_code=404, detail="Admin email not found")
+    
+    otp_code = str(random.randint(100000, 999999))
+    save_otp(email, otp_code)
+    
+    # Mock Email Send (Console)
+    print(f"\n[SECURITY] Admin OTP for {email}: {otp_code}\n")
+    
+    # If the user wants to use real SMTP, they can configure these env vars
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = os.getenv("SMTP_PORT", 587)
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    
+    if smtp_server and smtp_user and smtp_pass:
+        try:
+            msg = MIMEText(f"Your HackStorm AI Admin Verification Code is: {otp_code}")
+            msg['Subject'] = 'HackStorm AI Security Verification'
+            msg['From'] = smtp_user
+            msg['To'] = email
+            
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        except Exception as e:
+            print(f"Failed to send email via SMTP: {e}")
+
+    return {"message": "Verification code sent to your registered email"}
+
+class OTPVerifyRequest(BaseModel):
+    user_id: str
+    otp_code: str
+
+@app.post("/admin/otp/verify")
+def verify_admin_otp(req: OTPVerifyRequest):
+    if not check_admin(req.user_id):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    email = get_user_email_by_id(req.user_id)
+    if not email or not verify_otp(email, req.otp_code):
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code")
+        
+    return {"message": "Identity verified"}
 
 from models import MakeRecruiterRequest, CreateAssessmentRequest
 

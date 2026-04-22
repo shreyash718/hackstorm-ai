@@ -431,3 +431,65 @@ def toggle_problem_visibility_db(problem_id: int, is_public: bool):
         return False
     finally:
         conn.close()
+
+# ==========================================
+# OTP OPERATIONS
+# ==========================================
+
+def save_otp(email: str, code: str):
+    import datetime
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO admin_otps (email, otp_code, expires_at)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (email) DO UPDATE SET
+                otp_code = EXCLUDED.otp_code,
+                expires_at = EXCLUDED.expires_at
+            """, (email, code, expires_at))
+            return True
+    except Exception as e:
+        print(f"Error saving OTP: {e}")
+        return False
+    finally:
+        conn.close()
+
+def verify_otp(email: str, code: str):
+    import datetime
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT otp_code, expires_at FROM admin_otps WHERE email = %s", (email,))
+            result = cur.fetchone()
+            if not result: return False
+            
+            saved_code = result['otp_code']
+            expires_at = result['expires_at']
+            
+            if datetime.datetime.utcnow() > expires_at:
+                return False
+            
+            return saved_code == code
+    except Exception as e:
+        print(f"Error verifying OTP: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_user_email_by_id(user_id: str):
+    conn = get_db_connection()
+    if not conn: return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT email FROM auth.users WHERE id = %s", (user_id,))
+            result = cur.fetchone()
+            return result['email'] if result else None
+    except Exception as e:
+        print(f"Error fetching user email: {e}")
+        return None
+    finally:
+        conn.close()
