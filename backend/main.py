@@ -10,6 +10,7 @@ from interviewer import build_system_prompt, call_gemini, call_gemini_stream, de
 from fastapi.responses import StreamingResponse
 import json
 from evaluator import generate_report
+import resend
 from database import (
     save_session, update_session, save_report, get_report, check_admin, 
     get_all_sessions, get_all_reports, get_all_users, delete_user_by_id,
@@ -514,7 +515,33 @@ def send_admin_otp(req: OTPSendRequest):
     # Mock Email Send (Console)
     print(f"\n[SECURITY] Admin OTP for {email}: {otp_code}\n")
     
-    # If the user wants to use real SMTP, they can configure these env vars
+    # 1. Try Resend SDK (Recommended)
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    sender_email = os.getenv("SMTP_FROM", "onboarding@resend.dev")
+    
+    if resend_api_key:
+        try:
+            resend.api_key = resend_api_key
+            resend.Emails.send({
+                "from": f"HackStorm AI Security <{sender_email}>",
+                "to": [email],
+                "subject": "HackStorm AI Security Verification",
+                "html": f"""
+                    <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <h2 style="color: #1e3a8a;">Verify Your Identity</h2>
+                        <p>You are attempting to access the HackStorm AI Admin Portal. Please use the following code to complete your login:</p>
+                        <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 10px; border-radius: 8px; margin: 20px 0;">
+                            {otp_code}
+                        </div>
+                        <p style="color: #64748b; font-size: 12px;">This code will expire in 5 minutes. If you did not request this code, please ignore this email.</p>
+                    </div>
+                """
+            })
+            return {"message": "Verification code sent to your registered email"}
+        except Exception as e:
+            print(f"Resend SDK Error: {e}")
+
+    # 2. Fallback to SMTP
     smtp_server = os.getenv("SMTP_SERVER")
     smtp_port = os.getenv("SMTP_PORT", 587)
     smtp_user = os.getenv("SMTP_USER")
@@ -524,13 +551,14 @@ def send_admin_otp(req: OTPSendRequest):
         try:
             msg = MIMEText(f"Your HackStorm AI Admin Verification Code is: {otp_code}")
             msg['Subject'] = 'HackStorm AI Security Verification'
-            msg['From'] = smtp_user
+            msg['From'] = f"HackStorm AI Security <{sender_email}>"
             msg['To'] = email
             
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
+            return {"message": "Verification code sent to your registered email"}
         except Exception as e:
             print(f"Failed to send email via SMTP: {e}")
 
