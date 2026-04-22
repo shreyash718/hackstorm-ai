@@ -1,12 +1,15 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Square, Send } from 'lucide-react';
+import { Mic, MicOff, Square, Send, Activity } from 'lucide-react';
 
 export default function VoiceController({ onSendMessage, isSpeaking, loading, voiceMode }) {
   const [listening, setListening] = useState(false);
   const [input, setInput] = useState('');
+  const [volume, setVolume] = useState(0);
   const recogRef = useRef(null);
   const silenceTimerRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const streamRef = useRef(null);
   const inputRef = useRef('');
   const shouldRestartRef = useRef(false);
 
@@ -14,7 +17,49 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     inputRef.current = input;
   }, [input]);
 
-  // Cleanup on unmount
+  // Audio visualizer logic
+  useEffect(() => {
+    if (listening && !isSpeaking && !loading) {
+      const startVisualizer = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          audioContextRef.current = audioContext;
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const updateVolume = () => {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            setVolume(avg);
+            if (listening) requestAnimationFrame(updateVolume);
+          };
+          updateVolume();
+        } catch (e) {
+          console.error("Visualizer failed:", e);
+        }
+      };
+      startVisualizer();
+    } else {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      setVolume(0);
+    }
+  }, [listening, isSpeaking, loading]);
+
   useEffect(() => {
     return () => {
       shouldRestartRef.current = false;
@@ -23,6 +68,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
         recogRef.current = null;
       }
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
 
@@ -33,7 +79,10 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     // Stop listening before sending
     shouldRestartRef.current = false;
     if (recogRef.current) {
-      try { recogRef.current.abort(); } catch (e) {}
+      try {
+        recogRef.current.onend = null;
+        recogRef.current.abort(); 
+      } catch (e) {}
       recogRef.current = null;
     }
     setListening(false);
@@ -50,11 +99,13 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
   const resetSilenceTimer = useCallback((currentTranscript) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    
+    // Snappier auto-submit: 1.5s of silence
     silenceTimerRef.current = setTimeout(() => {
-      if (currentTranscript.trim()) {
+      if (currentTranscript.trim().length > 2) {
         handleSubmit(currentTranscript);
       }
-    }, 2000); // 2s of silence before auto-submit
+    }, 1500); 
   }, [handleSubmit]);
 
   const stopListening = useCallback(() => {
@@ -64,7 +115,10 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       silenceTimerRef.current = null;
     }
     if (recogRef.current) {
-      try { recogRef.current.abort(); } catch (e) {}
+      try {
+        recogRef.current.onend = null;
+        recogRef.current.stop(); 
+      } catch (e) {}
       recogRef.current = null;
     }
     setListening(false);
@@ -77,101 +131,74 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       return;
     }
 
-    // Cancel any ongoing TTS so we can listen
     window.speechSynthesis.cancel();
 
-    // Clean up any existing recognition
     if (recogRef.current) {
       try { recogRef.current.abort(); } catch (e) {}
-      recogRef.current = null;
     }
 
     const r = new SR();
     r.lang = 'en-US';
     r.continuous = true;
     r.interimResults = true;
+    r.maxAlternatives = 1;
 
     r.onstart = () => {
-      console.log('[Voice] Recognition started');
       setListening(true);
+      shouldRestartRef.current = true;
     };
 
     r.onresult = (e) => {
       let finalTranscript = '';
       let interimTranscript = '';
 
-      for (let i = 0; i < e.results.length; ++i) {
-        const result = e.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript;
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        if (e.results[i].isFinal) {
+          finalTranscript += e.results[i][0].transcript;
         } else {
-          interimTranscript += result[0].transcript;
+          interimTranscript += e.results[i][0].transcript;
         }
       }
 
       const fullTranscript = (finalTranscript + interimTranscript).trim();
-      if (fullTranscript && fullTranscript !== inputRef.current) {
+      if (fullTranscript) {
         setInput(fullTranscript);
         resetSilenceTimer(fullTranscript);
       }
     };
 
     r.onerror = (e) => {
-      console.log('[Voice] Recognition error:', e.error);
-      if (e.error === 'no-speech' || e.error === 'aborted') return;
-      shouldRestartRef.current = false;
-      setListening(false);
-      recogRef.current = null;
+      console.warn('[Voice] Error:', e.error);
+      if (e.error === 'network') {
+        alert("Network error with speech recognition. Please check your connection.");
+      }
+      if (e.error === 'not-allowed') {
+        alert("Microphone access denied. Please enable it in browser settings.");
+      }
     };
 
     r.onend = () => {
-      console.log('[Voice] Recognition ended, shouldRestart:', shouldRestartRef.current);
-      if (shouldRestartRef.current) {
-        try {
-          const newR = new SR();
-          newR.lang = 'en-US';
-          newR.continuous = true;
-          newR.interimResults = true;
-          newR.onstart = r.onstart;
-          newR.onresult = r.onresult;
-          newR.onerror = r.onerror;
-          newR.onend = r.onend;
-          recogRef.current = newR;
-          newR.start();
-          console.log('[Voice] Recognition restarted');
-        } catch (e) {
-          console.log('[Voice] Failed to restart:', e);
-          shouldRestartRef.current = false;
-          setListening(false);
-          recogRef.current = null;
-        }
+      if (shouldRestartRef.current && !loading && !isSpeaking) {
+        try { r.start(); } catch (e) { setListening(false); }
       } else {
         setListening(false);
-        recogRef.current = null;
       }
     };
 
     recogRef.current = r;
-    shouldRestartRef.current = true;
-
     try {
       r.start();
     } catch (e) {
-      console.error('[Voice] Failed to start recognition:', e);
-      shouldRestartRef.current = false;
       setListening(false);
-      recogRef.current = null;
     }
-  }, [resetSilenceTimer]);
+  }, [resetSilenceTimer, loading, isSpeaking]);
 
-  // Stop listening when loading starts
   useEffect(() => {
     if (loading && listening) {
       stopListening();
     }
   }, [loading, listening, stopListening]);
 
-  // Handle Ctrl+Enter key
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -192,55 +219,65 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       {voiceMode ? (
         <div className="flex flex-col items-center gap-3">
           {/* Main Mic Button */}
-          <button
-            onClick={() => {
-              if (listening) {
-                if (inputRef.current.trim()) {
-                  handleSubmit();
-                } else {
-                  stopListening();
-                }
-              } else {
-                startListening();
-              }
-            }}
-            disabled={micDisabled}
-            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
-              listening
-                ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30 animate-pulse'
-                : micDisabled
-                ? 'bg-gray-300 dark:bg-slate-800 text-gray-400 dark:text-slate-600 opacity-50 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
-            }`}
-          >
-            {listening ? (
-              <Square size={20} className="text-white fill-current" />
-            ) : (
-              <Mic size={22} className="text-white" />
+          <div className="relative">
+            {listening && (
+                <div 
+                  className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"
+                  style={{ transform: `scale(${1 + volume / 100})` }}
+                />
             )}
-          </button>
+            <button
+                onClick={() => {
+                if (listening) {
+                    if (inputRef.current.trim()) {
+                    handleSubmit();
+                    } else {
+                    stopListening();
+                    }
+                } else {
+                    startListening();
+                }
+                }}
+                disabled={micDisabled}
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg relative z-10 ${
+                listening
+                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
+                    : micDisabled
+                    ? 'bg-gray-300 dark:bg-slate-800 text-gray-400 dark:text-slate-600 opacity-50 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+                }`}
+            >
+                {listening ? (
+                <Square size={20} className="text-white fill-current" />
+                ) : (
+                <Mic size={22} className="text-white" />
+                )}
+            </button>
+          </div>
 
           {/* Status text */}
-          <span className={`text-xs tracking-wider font-semibold ${
-            listening ? 'text-red-500 dark:text-red-400 animate-pulse' : micDisabled ? 'text-gray-400 dark:text-slate-600' : 'text-gray-500 dark:text-slate-500'
-          }`}>
-            {loading ? 'PROCESSING...' : isSpeaking ? 'AI IS SPEAKING...' : listening ? 'LISTENING... (tap to send)' : 'TAP MIC TO SPEAK'}
-          </span>
+          <div className="flex items-center gap-2">
+            {listening && <Activity size={12} className="text-red-500 animate-pulse" />}
+            <span className={`text-[10px] tracking-widest font-bold uppercase ${
+                listening ? 'text-red-500 dark:text-red-400' : micDisabled ? 'text-gray-400 dark:text-slate-600' : 'text-gray-500 dark:text-slate-500'
+            }`}>
+                {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : listening ? 'Listening...' : 'Tap to speak'}
+            </span>
+          </div>
 
           {/* Show transcript preview */}
           {input && (
-            <div className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-800 rounded-lg text-gray-700 dark:text-slate-300 text-sm italic transition-colors">
+            <div className="w-full mt-1 p-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-gray-700 dark:text-slate-300 text-sm italic transition-colors">
               &ldquo;{input}&rdquo;
             </div>
           )}
 
-          {/* Send button appears when there's text but not listening */}
           {input.trim() && !listening && !loading && (
             <button
               onClick={() => handleSubmit()}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
             >
-              SEND <Send size={14} />
+              SEND RESPONSE <Send size={14} />
             </button>
           )}
         </div>
@@ -255,15 +292,15 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
                 handleSubmit();
               }
             }}
-            placeholder="Type your response... (Enter to send)"
+            placeholder="Type your response..."
             rows={3}
-            className="w-full bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#1e293b] rounded-lg text-gray-800 dark:text-slate-200 p-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none font-mono placeholder-gray-400 dark:placeholder-slate-600 transition-colors"
+            className="w-full bg-white dark:bg-[#0f172a] border border-gray-300 dark:border-[#1e293b] rounded-lg text-gray-800 dark:text-slate-200 p-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none font-mono transition-colors"
             disabled={loading || isSpeaking}
           />
           <button
             onClick={() => handleSubmit()}
             disabled={loading || !input.trim() || isSpeaking}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
           >
             SEND <Send size={14} />
           </button>

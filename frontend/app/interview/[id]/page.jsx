@@ -166,14 +166,14 @@ export default function InterviewScreen() {
                 if (voiceMode) {
                   const currentText = assistantContent.slice(spokenContent.length);
                   // Look for sentence terminators
-                  if (/[.!?](\s|$)/.test(currentText)) {
+                  if (/[.!?](\s|$)/.test(currentText) || (currentText.length > 40 && /[,;](\s|$)/.test(currentText))) {
                     const toSpeak = currentText.trim();
                     if (toSpeak) {
                       setIsSpeaking(true);
                       speak(toSpeak);
                       spokenContent = assistantContent;
                     }
-                  } else if (currentText.length > 80 && /\s$/.test(currentText)) {
+                  } else if (currentText.length > 60 && /\s$/.test(currentText)) {
                     // Force speak if sentence is getting too long
                     const toSpeak = currentText.trim();
                     if (toSpeak) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { sendChatMessage, evaluateInterview } from '@/lib/api';
+import { sendChatMessage, streamChatMessage, evaluateInterview } from '@/lib/api';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import CodeEditor from '@/components/CodeEditor';
 import ChatPanel from '@/components/ChatPanel';
@@ -142,34 +142,105 @@ export default function AssessmentInterviewScreen() {
   const handleSendMessage = async (text) => {
     if (!text.trim() || loading || !question?.ai_enabled) return;
     
+    // Interrupt AI if it's speaking
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+
     const userMsg = { role: 'user', content: text };
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setLoading(true);
 
     try {
-      const res = await sendChatMessage({
+      const response = await streamChatMessage({
         problem_id: question.problem_id,
         code,
         chat_history: newHistory,
         candidate_message: text,
-        user_id: sessionInfo?.candidate_name, // fallback
+        user_id: sessionInfo?.candidate_name,
       });
 
-      const assistantMsg = { role: 'assistant', content: res.reply };
-      setMessages([...newHistory, assistantMsg]);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       
-      if (res.is_complete) {
-        handleEndQuestion([...newHistory, assistantMsg]);
-        return;
+      let assistantContent = '';
+      let spokenContent = '';
+      let isComplete = false;
+      let buffer = '';
+
+      // Add a placeholder message for the assistant
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.text) {
+                assistantContent += data.text;
+                
+                // Update the last message
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1].content = assistantContent;
+                  return updated;
+                });
+
+                // Incremental TTS
+                if (voiceMode) {
+                  const currentText = assistantContent.slice(spokenContent.length);
+                  if (/[.!?](\s|$)/.test(currentText) || (currentText.length > 40 && /[,;](\s|$)/.test(currentText))) {
+                    const toSpeak = currentText.trim();
+                    if (toSpeak) {
+                      setIsSpeaking(true);
+                      speak(toSpeak);
+                      spokenContent = assistantContent;
+                    }
+                  } else if (currentText.length > 60 && /\s$/.test(currentText)) {
+                    const toSpeak = currentText.trim();
+                    if (toSpeak) {
+                      setIsSpeaking(true);
+                      speak(toSpeak);
+                      spokenContent = assistantContent;
+                    }
+                  }
+                }
+              }
+              if (data.is_complete !== undefined) isComplete = data.is_complete;
+            } catch (e) { console.error("Parse error:", e); }
+          }
+        }
       }
 
-      if (voiceMode) {
-        setIsSpeaking(true);
-        speak(res.reply, () => setIsSpeaking(false));
+      // Final speak
+      if (voiceMode && assistantContent.length > spokenContent.length) {
+        const toSpeak = assistantContent.slice(spokenContent.length).trim();
+        if (toSpeak) {
+          setIsSpeaking(true);
+          speak(toSpeak, () => setIsSpeaking(false));
+        } else {
+          setIsSpeaking(false);
+        }
+      } else if (voiceMode) {
+        setIsSpeaking(false);
       }
+
+      if (isComplete) {
+        handleEndQuestion([...newHistory, { role: 'assistant', content: assistantContent }]);
+      }
+
     } catch (e) {
-      setMessages([...newHistory, { role: 'assistant', content: 'Connection error.' }]);
+      console.error(e);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error.' }]);
     } finally {
       setLoading(false);
     }
