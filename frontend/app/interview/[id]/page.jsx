@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchProblem, sendChatMessage, streamChatMessage, evaluateInterview, generateTTS } from '@/lib/api';
+import { fetchProblem, sendChatMessage, streamChatMessage, evaluateInterview } from '@/lib/api';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import { supabase } from '@/lib/supabase';
 import CodeEditor from '@/components/CodeEditor';
@@ -23,10 +23,12 @@ const STARTER_CODE = {
   }
 };
 
-let currentAudio = null;
+function speak(text, onEnd) {
+  if (!text) return;
+  
+  // Interrupt any current speech
+  window.speechSynthesis.cancel();
 
-function speakLegacy(text, onEnd) {
-  console.warn("AI Voice: Premium TTS failed, falling back to browser default.");
   const utter = new SpeechSynthesisUtterance(text);
   
   // Find a decent browser voice
@@ -38,16 +40,6 @@ function speakLegacy(text, onEnd) {
   if (preferred) utter.voice = preferred;
   utter.onend = onEnd || null;
   window.speechSynthesis.speak(utter);
-}
-
-async function speak(text, onEnd) {
-  if (!text) return;
-  
-  // Interrupt any current speech
-  window.speechSynthesis.cancel();
-  
-  // Use browser-native TTS directly
-  speakLegacy(text, onEnd);
 }
 
 export default function InterviewScreen() {
