@@ -121,10 +121,10 @@ export default function AssessmentInterviewScreen() {
     return () => clearInterval(timer);
   }, [timeLeft, loading, evaluating, question]);
 
-  const handleTimeUp = () => {
+  function handleTimeUp() {
     alert("Time is up for this question!");
     handleEndQuestion(messages);
-  };
+  }
 
   useEffect(() => {
     if (!voiceMode || !question?.ai_enabled) return;
@@ -135,12 +135,12 @@ export default function AssessmentInterviewScreen() {
     }
   }, [messages, voiceMode, question]);
 
-  const handleLanguageChange = (newLang) => {
+  function handleLanguageChange(newLang) {
     setLanguage(newLang);
     setCode(STARTER_CODE[newLang] || '// Write your solution here\n');
-  };
+  }
 
-  const handleSendMessage = async (text) => {
+  async function handleSendMessage(text) {
     if (!text.trim() || loading || !question?.ai_enabled) return;
     
     const userMsg = { role: 'user', content: text };
@@ -245,7 +245,7 @@ export default function AssessmentInterviewScreen() {
     }
   };
 
-  const handleEndQuestion = async (historyToUse = messages) => {
+  async function handleEndQuestion(historyToUse = messages) {
     window.speechSynthesis.cancel();
     setEvaluating(true);
     try {

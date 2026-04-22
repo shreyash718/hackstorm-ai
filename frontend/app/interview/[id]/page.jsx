@@ -52,10 +52,10 @@ export default function InterviewScreen() {
   const [language, setLanguage] = useState('python');
   const [code, setCode] = useState(STARTER_CODE[problemId]?.python || '# Write your solution here\n');
 
-  const handleLanguageChange = (newLang) => {
+  function handleLanguageChange(newLang) {
     setLanguage(newLang);
     setCode(STARTER_CODE[problemId]?.[newLang] || '// Write your solution here\n');
-  };
+  }
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -103,7 +103,7 @@ export default function InterviewScreen() {
     }
   }, [messages, voiceMode]);
 
-  const handleSendMessage = async (text) => {
+  async function handleSendMessage(text) {
     if (!text.trim() || loading) return;
     
     // Interrupt AI if it's speaking
@@ -228,7 +228,7 @@ export default function InterviewScreen() {
     }
   };
 
-  const handleEndInterview = async (historyToUse = messages) => {
+  async function handleEndInterview(historyToUse = messages) {
     window.speechSynthesis.cancel();
     setEvaluating(true);
     try {
