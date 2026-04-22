@@ -6,6 +6,8 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const [listening, setListening] = useState(false);
   const [input, setInput] = useState('');
   const [volume, setVolume] = useState(0);
+  const [autoListen, setAutoListen] = useState(true);
+
   const recogRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -13,82 +15,16 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const inputRef = useRef('');
   const shouldRestartRef = useRef(false);
 
-  const [autoListen, setAutoListen] = useState(true);
-
-  // Auto-listen logic: When AI stops speaking, start listening automatically
-  useEffect(() => {
-    if (voiceMode && autoListen && !isSpeaking && !loading && !listening && !input.trim()) {
-      const timer = setTimeout(() => {
-        startListening();
-      }, 300); // Small delay to feel natural
-      return () => clearTimeout(timer);
-    }
-  }, [isSpeaking, loading, voiceMode, autoListen, listening, input, startListening]);
-
   useEffect(() => {
     inputRef.current = input;
   }, [input]);
 
-  // Audio visualizer logic
-  useEffect(() => {
-    if (listening && !isSpeaking && !loading) {
-      const startVisualizer = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          streamRef.current = stream;
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          audioContextRef.current = audioContext;
-          const source = audioContext.createMediaStreamSource(stream);
-          const analyser = audioContext.createAnalyser();
-          analyser.fftSize = 256;
-          source.connect(analyser);
-          
-          const dataArray = new Uint8Array(analyser.frequencyBinCount);
-          const updateVolume = () => {
-            if (!analyser) return;
-            analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            const avg = sum / dataArray.length;
-            setVolume(avg);
-            if (listening) requestAnimationFrame(updateVolume);
-          };
-          updateVolume();
-        } catch (e) {
-          console.error("Visualizer failed:", e);
-        }
-      };
-      startVisualizer();
-    } else {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-      setVolume(0);
-    }
-  }, [listening, isSpeaking, loading]);
-
-  useEffect(() => {
-    return () => {
-      shouldRestartRef.current = false;
-      if (recogRef.current) {
-        try { recogRef.current.abort(); } catch (e) {}
-        recogRef.current = null;
-      }
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (audioContextRef.current) audioContextRef.current.close();
-    };
-  }, []);
+  // --- Handlers ---
 
   const handleSubmit = useCallback((textOverride) => {
     const text = textOverride !== undefined ? textOverride : inputRef.current;
     if (!text.trim() || loading) return;
 
-    // Stop listening before sending
     shouldRestartRef.current = false;
     if (recogRef.current) {
       try {
@@ -112,7 +48,6 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const resetSilenceTimer = useCallback((currentTranscript) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     
-    // Snappier auto-submit: 1.5s of silence
     silenceTimerRef.current = setTimeout(() => {
       if (currentTranscript.trim().length > 2) {
         handleSubmit(currentTranscript);
@@ -205,6 +140,59 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     }
   }, [resetSilenceTimer, loading, isSpeaking]);
 
+  // --- Effects (defined after handlers to avoid initialization issues) ---
+
+  useEffect(() => {
+    if (voiceMode && autoListen && !isSpeaking && !loading && !listening && !input.trim()) {
+      const timer = setTimeout(() => {
+        startListening();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isSpeaking, loading, voiceMode, autoListen, listening, input, startListening]);
+
+  useEffect(() => {
+    if (listening && !isSpeaking && !loading) {
+      const startVisualizer = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          audioContextRef.current = audioContext;
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const updateVolume = () => {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            setVolume(avg);
+            if (listening) requestAnimationFrame(updateVolume);
+          };
+          updateVolume();
+        } catch (e) {
+          console.error("Visualizer failed:", e);
+        }
+      };
+      startVisualizer();
+    } else {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      setVolume(0);
+    }
+  }, [listening, isSpeaking, loading]);
+
   useEffect(() => {
     if (loading && listening) {
       stopListening();
@@ -223,6 +211,18 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [loading, isSpeaking, handleSubmit]);
+
+  useEffect(() => {
+    return () => {
+      shouldRestartRef.current = false;
+      if (recogRef.current) {
+        try { recogRef.current.abort(); } catch (e) {}
+        recogRef.current = null;
+      }
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (audioContextRef.current) audioContextRef.current.close();
+    };
+  }, []);
 
   const micDisabled = loading || isSpeaking;
 
