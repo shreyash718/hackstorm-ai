@@ -23,11 +23,12 @@ const STARTER_CODE = {
   }
 };
 
-function speak(text, onEnd) {
+function speak(text, onEnd, queue = true) {
   if (!text) return;
   
-  // Interrupt any current speech
-  window.speechSynthesis.cancel();
+  if (!queue) {
+    window.speechSynthesis.cancel();
+  }
 
   const utter = new SpeechSynthesisUtterance(text);
   
@@ -113,6 +114,8 @@ export default function InterviewScreen() {
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setLoading(true);
+    window.speechSynthesis.cancel(); // Interrupt any old speech
+    setIsSpeaking(false);
 
     try {
       console.log("Starting stream chat...");

@@ -18,11 +18,12 @@ const STARTER_CODE = {
     rust: `// Write your solution here\n`
 };
 
-function speak(text, onEnd) {
+function speak(text, onEnd, queue = true) {
   if (!text) return;
 
-  // Interrupt any current speech
-  window.speechSynthesis.cancel();
+  if (!queue) {
+    window.speechSynthesis.cancel();
+  }
 
   const utter = new SpeechSynthesisUtterance(text);
   
@@ -142,14 +143,12 @@ export default function AssessmentInterviewScreen() {
   const handleSendMessage = async (text) => {
     if (!text.trim() || loading || !question?.ai_enabled) return;
     
-    // Interrupt AI if it's speaking
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-
     const userMsg = { role: 'user', content: text };
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setLoading(true);
+    window.speechSynthesis.cancel(); // Interrupt AI if it's speaking
+    setIsSpeaking(false);
 
     try {
       const response = await streamChatMessage({
