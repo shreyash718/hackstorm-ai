@@ -164,9 +164,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
         return;
       }
 
-      if (e.key.toLowerCase() === 's' && status === 'idle' && !isDisabled) {
+      const key = e.key.toLowerCase();
+      if (key === 's') {
         e.preventDefault();
-        startRecording();
+        if (status === 'idle' && !isDisabled) {
+          startRecording();
+        } else if (status === 'recording') {
+          stopRecording();
+        }
       } else if (e.key === 'Enter' && status === 'ready') {
         e.preventDefault();
         handleSend();
@@ -175,7 +180,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [status, isDisabled, startRecording, handleSend]);
+  }, [status, isDisabled, startRecording, stopRecording, handleSend]);
 
   useEffect(() => {
     return () => cleanupStream();
@@ -274,11 +279,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
           </div>
 
           {/* Helper Status */}
-          {status === 'idle' && (
+          <div className="flex flex-col items-center gap-1">
             <span className="text-[10px] tracking-widest font-bold uppercase text-gray-400 dark:text-slate-600">
-              {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : 'Tap Mic to Start Answer'}
+              {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : status === 'recording' ? 'Speaking...' : 'Ready to Start'}
             </span>
-          )}
+            <span className="text-[9px] tracking-tight font-medium text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-slate-900/50 px-2 py-0.5 rounded-full border border-gray-200 dark:border-slate-800">
+              Press <kbd className="font-bold text-blue-500 px-1">S</kbd> to Start/Stop speaking • <kbd className="font-bold text-blue-500 px-1">Enter</kbd> to Send
+            </span>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
