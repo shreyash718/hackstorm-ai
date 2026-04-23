@@ -394,6 +394,10 @@ async def chat(req: ChatRequest):
         "is_complete": is_complete
     }
 
+@app.post("/evaluate")
+async def evaluate(req: EvaluateRequest, user_id: str = Depends(get_current_user_id)):
+    return persist_evaluation_report(req, user_id)
+
 def persist_evaluation_report(req: EvaluateRequest, user_id: str = None):
     problem = get_problem(req.problem_id)
     if not problem:
