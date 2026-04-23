@@ -127,13 +127,19 @@ async def transcribe_audio(file: UploadFile = File(...)):
             os.remove(tmp_path)
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- CORS Configuration ---
+frontend_urls = os.getenv("FRONTEND_URL", "https://hackstorm-ai.vercel.app")
+origins = [url.strip() for url in frontend_urls.split(",") if url.strip()]
+
+# Add defaults if not present
+defaults = ["http://localhost:3000", "https://hackstorm-ai.vercel.app"]
+for d in defaults:
+    if d not in origins:
+        origins.append(d)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://hackstorm-ai.vercel.app",
-        os.getenv("FRONTEND_URL", "https://hackstorm-ai.vercel.app")
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
