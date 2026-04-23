@@ -73,6 +73,8 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SGL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+    
     if (!SR) {
       alert("Speech recognition is not supported in this browser. Please use Chrome.");
       return;
@@ -85,6 +87,15 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     }
 
     const r = new SR();
+    
+    // Add technical grammar hints if supported
+    if (SGL) {
+      const grammar = '#JSGF V1.0; grammar tech; public <keyword> = python | java | code | logic | complexity | optimized | space | time | big o | array | string | recursion | dynamic | loop ;'
+      const speechRecognitionList = new SGL();
+      speechRecognitionList.addFromString(grammar, 1);
+      r.grammars = speechRecognitionList;
+    }
+
     r.lang = 'en-US';
     r.continuous = true;
     r.interimResults = true;
@@ -125,10 +136,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     };
 
     r.onend = () => {
-      if (shouldRestartRef.current && !loading && !isSpeaking) {
-        try { r.start(); } catch (e) { setListening(false); }
-      } else {
-        setListening(false);
+      setListening(false);
+      // Auto-restart if we were supposed to be listening and not in a busy state
+      if (shouldRestartRef.current && !loading && !isSpeaking && voiceMode && autoListen) {
+        setTimeout(() => {
+          try { 
+            if (shouldRestartRef.current) startListening(); 
+          } catch (e) { console.error("Auto-restart failed", e); }
+        }, 100);
       }
     };
 
@@ -155,7 +170,13 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     if (listening && !isSpeaking && !loading) {
       const startVisualizer = async () => {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            } 
+          });
           streamRef.current = stream;
           const audioContext = new (window.AudioContext || window.webkitAudioContext)();
           audioContextRef.current = audioContext;
