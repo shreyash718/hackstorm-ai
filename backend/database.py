@@ -10,12 +10,14 @@ load_dotenv()
 
 # Connection Pool Initialization
 db_url = os.getenv("DATABASE_URL")
+pool = None
 if db_url:
-    db_url = db_url.strip()
-    # Min 1, Max 20 connections
-    pool = SimpleConnectionPool(1, 20, db_url, cursor_factory=RealDictCursor)
-else:
-    pool = None
+    try:
+        db_url = db_url.strip()
+        # Min 1, Max 20 connections
+        pool = SimpleConnectionPool(1, 20, db_url, cursor_factory=RealDictCursor)
+    except Exception as e:
+        print(f"CRITICAL: Failed to initialize database pool: {e}")
 
 def get_db_connection():
     if not pool:

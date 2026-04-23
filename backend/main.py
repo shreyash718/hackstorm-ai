@@ -66,21 +66,33 @@ async def get_recruiter_user(user_id: str = Depends(get_current_user_id)) -> str
         raise HTTPException(status_code=403, detail="Recruiter access required")
     return user_id
 
-# Initialize Whisper model globally (using tiny.en for maximum speed on CPU)
-try:
-    whisper_model = WhisperModel(
-        "tiny.en", 
-        device="cpu", 
-        compute_type="int8",
-        cpu_threads=2, # Optimized for low-resource/free hosting
-        num_workers=1
-    )
-except Exception as e:
-    print(f"Warning: Faster Whisper failed to load: {e}")
-    whisper_model = None
+# Lazy Whisper Initialization
+whisper_model = None
+
+def get_whisper_model():
+    global whisper_model
+    if whisper_model is not None:
+        return whisper_model
+    
+    try:
+        print("Initializing Whisper model...")
+        whisper_model = WhisperModel(
+            "tiny.en", 
+            device="cpu", 
+            compute_type="int8",
+            cpu_threads=2,
+            num_workers=1
+        )
+        return whisper_model
+    except Exception as e:
+        print(f"Warning: Faster Whisper failed to load: {e}")
+        return None
 
 def run_whisper(path):
-    segments, info = whisper_model.transcribe(
+    model = get_whisper_model()
+    if not model:
+        return "Error: model not loaded", "en", 0
+    segments, info = model.transcribe(
         path,
         beam_size=1,
         language="en",
@@ -92,7 +104,8 @@ def run_whisper(path):
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    if whisper_model is None:
+    model = get_whisper_model()
+    if model is None:
         raise HTTPException(status_code=500, detail="Transcription service not available")
     
     # Validation
@@ -128,14 +141,23 @@ async def transcribe_audio(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- CORS Configuration ---
-frontend_urls = os.getenv("FRONTEND_URL", "https://hackstorm-ai.vercel.app")
+frontend_urls = os.getenv("FRONTEND_URL", "")
 origins = [url.strip() for url in frontend_urls.split(",") if url.strip()]
 
-# Add defaults if not present
-defaults = ["http://localhost:3000", "https://hackstorm-ai.vercel.app"]
+# Add comprehensive defaults
+defaults = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://hackstorm-ai.vercel.app",
+    "https://hackstorm-ai.vercel.app/",
+    "http://hackstorm-ai.vercel.app",
+    "https://hackstorm-backend.onrender.com"
+]
 for d in defaults:
     if d not in origins:
         origins.append(d)
+
+print(f"CORS Origins: {origins}")
 
 # --- IP Restriction Middleware for /admin/* routes ---
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -182,9 +204,11 @@ app.add_middleware(AdminIPRestrictionMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 @app.get("/ping")
@@ -899,4 +923,5 @@ def list_benchmarks():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
