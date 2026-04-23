@@ -4,7 +4,7 @@ import { Mic, MicOff, Square, Send, Activity, RotateCcw, Loader2 } from 'lucide-
 import { transcribeAudio } from '@/lib/api';
 
 export default function VoiceController({ onSendMessage, isSpeaking, loading, voiceMode }) {
-  const [status, setStatus] = useState('idle'); // idle, recording, transcribing, ready
+  const [status, setStatus] = useState('idle'); // idle, recording, uploading, transcribing, ready
   const [input, setInput] = useState('');
   const [volume, setVolume] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -54,9 +54,16 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       };
       updateVolume();
 
+      // Detect best supported MIME type
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+
       // Setup MediaRecorder with low bitrate for faster upload
       const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType: 'audio/webm;codecs=opus',
+        ...(mimeType ? { mimeType } : {}),
         audioBitsPerSecond: 24000 
       });
       mediaRecorderRef.current = mediaRecorder;
@@ -68,7 +75,8 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
+        const finalMime = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: finalMime });
         cleanupStream();
         handleTranscribe(audioBlob);
       };
@@ -94,18 +102,29 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   }, []);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && status === 'recording') {
-      mediaRecorderRef.current.stop();
-      setStatus('transcribing');
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+      setStatus('uploading');
     }
     // cleanupStream moved to onstop to avoid race conditions
-  }, [status]);
+  }, []);
 
   const handleTranscribe = async (blob) => {
     try {
+      setStatus('uploading');
       console.time('[STT] Total Transcription Flow');
-      const data = await transcribeAudio(blob);
+      const data = await transcribeAudio(blob, (percent) => {
+        if (percent >= 100) setStatus('transcribing');
+      });
       console.timeEnd('[STT] Total Transcription Flow');
+      
+      if (!data.transcript || data.transcript.trim() === '') {
+        alert("Could not detect speech. Please try again or type your response.");
+        setStatus('idle');
+        return;
+      }
+
       setInput(data.transcript);
       setStatus('ready');
     } catch (err) {
@@ -212,10 +231,12 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
               </div>
             )}
 
-            {status === 'transcribing' && (
+            {(status === 'uploading' || status === 'transcribing') && (
               <div className="flex flex-col items-center gap-3">
                 <Loader2 size={32} className="text-blue-600 animate-spin" />
-                <span className="text-xs font-bold text-blue-600 tracking-widest uppercase">AI is Transcribing...</span>
+                <span className="text-xs font-bold text-blue-600 tracking-widest uppercase">
+                  {status === 'uploading' ? 'Uploading Audio...' : 'AI is Transcribing...'}
+                </span>
               </div>
             )}
 

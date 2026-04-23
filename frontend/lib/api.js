@@ -112,10 +112,17 @@ export const removeRecruiter = async (adminId, targetId) => {
   return response.data;
 };
 
-export const transcribeAudio = async (audioBlob) => {
+export const transcribeAudio = async (audioBlob, onProgress) => {
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.webm');
   
-  const response = await api.post('/transcribe', formData);
+  const response = await api.post('/transcribe', formData, {
+    onUploadProgress: (progressEvent) => {
+      if (onProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted);
+      }
+    }
+  });
   return response.data;
 };

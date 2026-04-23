@@ -41,7 +41,13 @@ app = FastAPI(title="HackStorm Interview AI")
 
 # Initialize Whisper model globally (using tiny.en for maximum speed on CPU)
 try:
-    whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+    whisper_model = WhisperModel(
+        "tiny.en", 
+        device="cpu", 
+        compute_type="int8",
+        cpu_threads=4, # Adjust based on server CPU
+        num_workers=2
+    )
 except Exception as e:
     print(f"Warning: Faster Whisper failed to load: {e}")
     whisper_model = None
