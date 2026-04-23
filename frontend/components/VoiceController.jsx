@@ -164,6 +164,17 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
   // --- Effects ---
 
+  const statusRef = useRef(status);
+  const isDisabledRef = useRef(isDisabled);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    isDisabledRef.current = isDisabled;
+  }, [isDisabled]);
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -175,21 +186,27 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       const key = e.key.toLowerCase();
       if (key === 's') {
         e.preventDefault();
-        console.log("VoiceController: 'S' pressed. Status:", status);
-        if (status === 'recording') {
+        const currentStatus = statusRef.current;
+        console.log("VoiceController: 'S' pressed. Current Status:", currentStatus);
+        
+        if (currentStatus === 'recording') {
           stopRecording();
-        } else if (status === 'idle' && !isDisabled) {
+        } else if (currentStatus === 'idle' && !isDisabledRef.current) {
           startRecording();
         }
-      } else if (e.key === 'Enter' && status === 'ready') {
+      } else if (e.key === 'Enter' && statusRef.current === 'ready') {
         e.preventDefault();
         handleSend();
       }
     };
 
+    console.log("Attaching VoiceController keyboard listener");
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [status, isDisabled, startRecording, stopRecording, handleSend]);
+    return () => {
+      console.log("Removing VoiceController keyboard listener");
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [startRecording, stopRecording, handleSend]);
 
   useEffect(() => {
     return () => cleanupStream();
