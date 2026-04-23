@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { supabase } from './supabase';
 
-const PRODUCTION_API_URL = 'https://hackstorm-backend.onrender.com';
+const PRODUCTION_API_URL = 'https://hackstorm-ai.onrender.com';
 const LOCAL_API_URL = 'http://localhost:8000';
 
 const normalizeApiUrl = (url) => {

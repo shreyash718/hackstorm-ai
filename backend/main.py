@@ -155,7 +155,7 @@ defaults = [
     "https://hackstorm-ai.vercel.app",
     "https://hackstorm-ai.vercel.app/",
     "http://hackstorm-ai.vercel.app",
-    "https://hackstorm-backend.onrender.com"
+    "https://hackstorm-ai.onrender.com"
 ]
 for d in defaults:
     if d not in origins:

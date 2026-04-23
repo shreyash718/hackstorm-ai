@@ -31,7 +31,7 @@ services:
     startCommand: "npm run start"
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://hackstorm-backend.onrender.com
+        value: https://hackstorm-ai.onrender.com
       # The following should be set in the Render Dashboard
       # - NEXT_PUBLIC_SUPABASE_URL
       # - NEXT_PUBLIC_SUPABASE_ANON_KEY
