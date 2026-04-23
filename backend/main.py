@@ -194,50 +194,56 @@ def verify_admin_access(request: Request):
 # In Starlette, middlewares wrap the app. To make CORS outermost for response, add it LAST.
 
 # --- Unified CORS and Error Handling Middleware ---
-@app.middleware("http")
-async def unified_middleware(request: Request, call_next):
-    # 1. Handle OPTIONS (Preflight)
-    if request.method == "OPTIONS":
-        response = JSONResponse(content="OK")
+class UnifiedCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # 1. Handle OPTIONS (Preflight)
+        if request.method == "OPTIONS":
+            response = JSONResponse(content="OK")
+            origin = request.headers.get("origin")
+            if origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Access-Control-Allow-Methods"] = "*"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+
+        # 2. Handle Actual Request with Error Catching
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            print(f"CRITICAL ERROR in request {request.url.path}: {e}")
+            traceback.print_exc()
+            response = JSONResponse(
+                status_code=500,
+                content={"detail": "Internal Server Error", "error": str(e)}
+            )
+        
+        # 3. Inject CORS Headers into ALL responses (including errors)
         origin = request.headers.get("origin")
         if origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Expose-Headers"] = "*"
+        
         return response
 
-    # 2. Handle Actual Request with Error Catching
-    try:
-        response = await call_next(request)
-    except Exception as e:
-        print(f"CRITICAL ERROR in request {request.url.path}: {e}")
-        traceback.print_exc()
-        response = JSONResponse(
-            status_code=500,
-            content={"detail": "Internal Server Error", "error": str(e)}
-        )
-    
-    # 3. Inject CORS Headers into ALL responses (including errors)
-    origin = request.headers.get("origin")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        # Important for some clients to see headers
-        response.headers["Access-Control-Expose-Headers"] = "*"
-    
-    return response
+app.add_middleware(UnifiedCORSMiddleware)
+
+# Explicit OPTIONS handler for any routes that bypass middleware
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    return JSONResponse(content="OK")
 
 # Standard CORSMiddleware is REMOVED to avoid conflict with unified_middleware
 
 @app.on_event("startup")
 async def startup_event():
-    print("--- HackStorm Backend Startup ---")
+    print("--- HackStorm Backend Startup (v1.0.6-CORS-FIX) ---")
     print(f"CORS Origins: {origins}")
     print("Health check: /ping is available")
-    print("---------------------------------")
+    print("---------------------------------------------------")
 
 @app.get("/")
 def root():
