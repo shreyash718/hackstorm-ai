@@ -29,7 +29,7 @@ from supabase import create_client, Client
 import os
 import tempfile
 from fastapi import File, UploadFile
-from faster_whisper import WhisperModel
+# from faster_whisper import WhisperModel (moved to lazy loader)
 from starlette.concurrency import run_in_threadpool
 
 def get_supabase_admin() -> Client:
@@ -75,7 +75,8 @@ def get_whisper_model():
         return whisper_model
     
     try:
-        print("Initializing Whisper model...")
+        print("Initializing Whisper model (lazy)...")
+        from faster_whisper import WhisperModel
         whisper_model = WhisperModel(
             "tiny.en", 
             device="cpu", 
@@ -83,6 +84,7 @@ def get_whisper_model():
             cpu_threads=2,
             num_workers=1
         )
+        print("Whisper model loaded successfully.")
         return whisper_model
     except Exception as e:
         print(f"Warning: Faster Whisper failed to load: {e}")
@@ -157,7 +159,7 @@ for d in defaults:
     if d not in origins:
         origins.append(d)
 
-print(f"CORS Origins: {origins}")
+# CORS Origins will be printed on startup
 
 # --- IP Restriction Middleware for /admin/* routes ---
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -210,6 +212,17 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("--- HackStorm Backend Startup ---")
+    print(f"CORS Origins: {origins}")
+    print("Health check: /ping is available")
+    print("---------------------------------")
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "HackStorm Interview AI"}
 
 @app.get("/ping")
 def ping():
