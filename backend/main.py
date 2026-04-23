@@ -37,9 +37,9 @@ load_dotenv()
 
 app = FastAPI(title="HackStorm Interview AI")
 
-# Initialize Whisper model globally (using base.en for balanced speed/accuracy)
+# Initialize Whisper model globally (using tiny.en for maximum speed on CPU)
 try:
-    whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+    whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
 except Exception as e:
     print(f"Warning: Faster Whisper failed to load: {e}")
     whisper_model = None
@@ -55,8 +55,8 @@ async def transcribe_audio(file: UploadFile = File(...)):
             tmp.write(await file.read())
             tmp_path = tmp.name
 
-        # Transcribe
-        segments, info = whisper_model.transcribe(tmp_path, beam_size=5)
+        # Transcribe (greedy decoding for speed)
+        segments, info = whisper_model.transcribe(tmp_path, beam_size=1)
         
         # Combine segments
         transcript = " ".join([segment.text for segment in segments]).strip()
