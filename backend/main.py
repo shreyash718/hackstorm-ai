@@ -503,18 +503,22 @@ def persist_evaluation_report(req: EvaluateRequest, user_id: str = None):
     
     # Trigger readiness calculation if target exists
     if user_id:
-        target = get_target_company(user_id)
-        if target:
-            benchmark = get_benchmark(target['company_name'], target['role'], target['target_level'])
-            if benchmark:
-                readiness = calculate_readiness(report_data, benchmark)
-                readiness["ai_analysis"] = generate_ai_analysis(readiness, report_data)
-                save_progress_snapshot(user_id, target['id'], readiness)
-                report_data["readiness"] = {
-                    "target_company": target['company_name'],
-                    "score": readiness["readiness_score"],
-                    "skill_gaps": readiness["skill_gaps"]
-                }
+        try:
+            target = get_target_company(user_id)
+            if target:
+                benchmark = get_benchmark(target['company_name'], target['role'], target['target_level'])
+                if benchmark:
+                    readiness = calculate_readiness(report_data, benchmark)
+                    readiness["ai_analysis"] = generate_ai_analysis(readiness, report_data)
+                    save_progress_snapshot(user_id, target['id'], readiness)
+                    report_data["readiness"] = {
+                        "target_company": target['company_name'],
+                        "score": readiness["readiness_score"],
+                        "skill_gaps": readiness["skill_gaps"]
+                    }
+        except Exception as e:
+            print(f"Warning: Failed to calculate readiness for candidate dashboard: {e}")
+            # Don't fail the whole evaluation if dashboard update fails
     
     return report_data
 

@@ -1,25 +1,17 @@
-from google import genai
+from interviewer import call_gemini
 import os
 import json
 from typing import Dict, Any, List
 
-_client = None
-
-def get_gemini_client():
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    return _client
-
 def generate_report(problem: Dict[str, Any], chat_history: List[Dict[str, str]], final_code: str) -> Dict[str, Any]:
-    client = get_gemini_client()
-
     history_text = ""
     for msg in chat_history:
         role = "Candidate" if msg["role"] == "user" else "Interviewer"
         history_text += f"{role}: {msg['content']}\n"
 
-    prompt = f"""You evaluated a candidate solving: {problem['title']}
+    system_prompt = "You are a senior technical interviewer. Evaluate the candidate's performance based on the provided conversation and code. Return ONLY valid JSON."
+    
+    user_message = f"""You evaluated a candidate solving: {problem['title']}
 
 Full conversation:
 {history_text}
@@ -48,21 +40,22 @@ Give a structured evaluation as JSON with these exact keys:
 Return ONLY valid JSON, without formatting blocks or markdown.
 """
 
-    response = client.models.generate_content(
-        model="gemini-3.1-flash-lite-preview",
-        contents=prompt
-    )
     try:
-        raw = response.text.strip()
+        reply = call_gemini(system_prompt, user_message)
+        
+        raw = reply.strip()
+        # Remove markdown code blocks if present
         if raw.startswith("```json"):
             raw = raw[7:]
-        if raw.startswith("```"):
+        elif raw.startswith("```"):
             raw = raw[3:]
         if raw.endswith("```"):
             raw = raw[:-3]
+            
         return json.loads(raw.strip())
     except Exception as e:
+        print(f"Evaluation generation error: {e}")
         return {
-            "error": "Failed to parse evaluation",
-            "raw": response.text
+            "error": "Failed to generate or parse evaluation",
+            "detail": str(e)
         }
