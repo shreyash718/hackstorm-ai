@@ -137,14 +137,6 @@ for d in defaults:
     if d not in origins:
         origins.append(d)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # --- IP Restriction Middleware for /admin/* routes ---
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -182,6 +174,16 @@ class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 app.add_middleware(AdminIPRestrictionMiddleware)
+
+# --- CORS Configuration (Outermost) ---
+# Temporarily using "*" for allow_origins to debug persistent CORS blocks
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/ip")
 def get_ip(request: Request):
