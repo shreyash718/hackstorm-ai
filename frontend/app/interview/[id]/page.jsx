@@ -106,8 +106,6 @@ export default function InterviewScreen() {
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
-  const [currentPhase, setCurrentPhase] = useState('PLANNING');
-  const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
