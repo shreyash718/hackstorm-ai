@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export default function useVoiceInput({ onTranscriptReady, disabled }) {
+export default function useVoiceInput({ onTranscriptReady, onSend, disabled }) {
   const [status, setStatus] = useState('idle'); // idle, recording, ready
   const [transcript, setTranscript] = useState('');
   const [volume, setVolume] = useState(0);
@@ -173,12 +173,15 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
         } else if ((currentStatus === 'idle' || currentStatus === 'ready') && !disabledRef.current) {
           startRecording();
         }
+      } else if (e.key === 'Enter' && statusRef.current === 'ready') {
+        e.preventDefault();
+        if (onSend) onSend();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [startRecording, stopRecording]);
+  }, [startRecording, stopRecording, onSend]);
 
   useEffect(() => {
     return () => cleanupStream();

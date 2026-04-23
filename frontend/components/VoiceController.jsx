@@ -13,6 +13,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     stopRecording,
     resetTranscript,
   } = useVoiceInput({
+    onSend: () => handleSend(),
     disabled: loading || isSpeaking
   });
 
