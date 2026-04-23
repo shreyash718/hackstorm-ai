@@ -15,6 +15,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const lastSpeechTimeRef = useRef(Date.now());
+  const isDisabled = loading || isSpeaking;
 
   // --- Initialize Speech Recognition ---
   useEffect(() => {
@@ -187,7 +188,6 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     }
   }, [isSpeaking, loading, status, stopRecording]);
 
-  const isDisabled = loading || isSpeaking;
 
   return (
     <div className="flex flex-col border-t border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#0a0e1a] p-4 flex-shrink-0 font-mono rounded-b-xl transition-colors">

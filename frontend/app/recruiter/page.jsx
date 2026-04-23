@@ -22,7 +22,7 @@ export default function RecruiterLandingPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-100 font-sans selection:bg-violet-500/30 overflow-hidden relative transition-colors duration-300">
       
       {/* Background Ambience */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
+      <div className="absolute inset-0 bg-[url('')] opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-violet-600/20 blur-[150px] rounded-full pointer-events-none" />
       <div className="absolute top-[40%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none" />
 
@@ -230,7 +230,7 @@ export default function RecruiterLandingPage() {
           initial={{ opacity: 0, y: 40, scale: 0.95 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true }}
           className="max-w-4xl mx-auto bg-gradient-to-br from-violet-900/40 to-indigo-900/40 border border-violet-500/30 rounded-[3rem] p-16 text-center relative overflow-hidden"
         >
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[url('')] opacity-20 mix-blend-overlay pointer-events-none"></div>
           <div className="absolute -top-24 -right-24 w-64 h-64 bg-violet-500/30 blur-[100px] rounded-full"></div>
           
           <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 relative z-10">Ready to scale your technical hiring?</h2>

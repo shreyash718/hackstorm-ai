@@ -191,7 +191,7 @@ export default function RecruiterLoginPage() {
         
         {/* Subtle background glow for the form side */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 blur-[150px] pointer-events-none rounded-full" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[url('')] opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
 
         <div className="absolute top-6 right-6">
           <ThemeToggle />
