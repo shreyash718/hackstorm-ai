@@ -78,19 +78,21 @@ def save_report(report_data: Dict[str, Any]):
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO reports (
-                    id, session_id, overall_score, problem_solving, code_quality,
-                    communication, optimization, hire_recommendation, strengths,
+                    id, session_id, user_id, overall_score, problem_solving, code_quality,
+                    communication, optimization, debugging, hire_recommendation, strengths,
                     improvements, time_complexity, space_complexity, summary, final_code
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 report_data.get("id"),
                 report_data.get("session_id"),
+                report_data.get("user_id"),
                 report_data.get("overall_score"),
                 report_data.get("problem_solving"),
                 report_data.get("code_quality"),
                 report_data.get("communication"),
                 report_data.get("optimization"),
+                report_data.get("debugging", 0),
                 report_data.get("hire_recommendation"),
                 report_data.get("strengths", []),
                 report_data.get("improvements", []),
@@ -491,5 +493,148 @@ def get_user_email_by_id(user_id: str):
     except Exception as e:
         print(f"Error fetching user email: {e}")
         return None
+    finally:
+        conn.close()
+
+# ==========================================
+# CANDIDATE DASHBOARD & PROGRESS
+# ==========================================
+
+def get_candidate_reports(user_id: str):
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT r.*, p.title as problem_title 
+                FROM reports r
+                JOIN sessions s ON r.session_id = s.id
+                JOIN problems p ON s.problem_id = p.id
+                WHERE r.user_id = %s OR s.user_id = %s
+                ORDER BY r.created_at DESC
+            """, (user_id, user_id))
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching candidate reports: {e}")
+        return []
+    finally:
+        conn.close()
+
+def get_report_by_id(report_id: str):
+    conn = get_db_connection()
+    if not conn: return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM reports WHERE id = %s", (report_id,))
+            return cur.fetchone()
+    except Exception as e:
+        print(f"Error fetching report by id: {e}")
+        return None
+    finally:
+        conn.close()
+
+def set_target_company(user_id: str, company_name: str, role: str, target_level: str):
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            # Deactivate old targets
+            cur.execute("UPDATE target_companies SET is_active = FALSE WHERE user_id = %s", (user_id,))
+            # Insert new active target
+            cur.execute("""
+                INSERT INTO target_companies (user_id, company_name, role, target_level, is_active)
+                VALUES (%s, %s, %s, %s, TRUE)
+            """, (user_id, company_name, role, target_level))
+            return True
+    except Exception as e:
+        print(f"Error setting target company: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_target_company(user_id: str):
+    conn = get_db_connection()
+    if not conn: return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM target_companies WHERE user_id = %s AND is_active = TRUE", (user_id,))
+            return cur.fetchone()
+    except Exception as e:
+        print(f"Error fetching target company: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_company_benchmarks():
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM company_benchmarks")
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching benchmarks: {e}")
+        return []
+    finally:
+        conn.close()
+
+def get_benchmark(company_name: str, role: str, level: str):
+    conn = get_db_connection()
+    if not conn: return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM company_benchmarks 
+                WHERE company_name = %s AND role = %s AND level = %s
+            """, (company_name, role, level))
+            return cur.fetchone()
+    except Exception as e:
+        print(f"Error fetching benchmark: {e}")
+        return None
+    finally:
+        conn.close()
+
+def save_progress_snapshot(user_id: str, target_company_id: str, readiness_data: dict):
+    conn = get_db_connection()
+    if not conn: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO candidate_progress_snapshots (
+                    user_id, target_company_id, readiness_score, 
+                    communication_gap, problem_solving_gap, code_quality_gap, 
+                    optimization_gap, debugging_gap
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id, target_company_id, readiness_data['readiness_score'],
+                readiness_data['skill_gaps'].get('communication'),
+                readiness_data['skill_gaps'].get('problem_solving'),
+                readiness_data['skill_gaps'].get('code_quality'),
+                readiness_data['skill_gaps'].get('optimization'),
+                readiness_data['skill_gaps'].get('debugging')
+            ))
+            return True
+    except Exception as e:
+        print(f"Error saving progress snapshot: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_progress_history(user_id: str):
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT created_at as date, readiness_score 
+                FROM candidate_progress_snapshots 
+                WHERE user_id = %s 
+                ORDER BY created_at ASC
+            """, (user_id,))
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching progress history: {e}")
+        return []
     finally:
         conn.close()

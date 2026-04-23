@@ -88,3 +88,27 @@ class CreateAssessmentRequest(BaseModel):
     title: str
     recruiter_id: str
     questions: List[AssessmentQuestionRequest]
+
+class TargetCompanyRequest(BaseModel):
+    user_id: str
+    company_name: str
+    role: str
+    target_level: str
+
+class TargetCompanyResponse(BaseModel):
+    id: str
+    company_name: str
+    role: str
+    target_level: str
+    is_active: bool
+
+class ProgressSnapshotModel(BaseModel):
+    date: str
+    readiness_score: int
+
+class ProgressResponse(BaseModel):
+    target_company: Optional[str] = None
+    target_level: Optional[str] = None
+    current_readiness: int = 0
+    history: List[ProgressSnapshotModel] = []
+    skill_gaps: Dict[str, int] = {}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchProblems, startSession, API_URL } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import { Bot, Code2, Sparkles, ArrowRight, Mic, Filter, ArrowLeft } from 'lucide-react';
+import { Bot, Code2, Sparkles, ArrowRight, Mic, Filter, ArrowLeft, LayoutDashboard } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
 
@@ -456,6 +456,12 @@ export default function Home() {
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               {user.email}
             </div>
+            <button 
+              onClick={() => router.push('/candidate/dashboard')} 
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:opacity-80 transition-all flex items-center gap-1"
+            >
+              <LayoutDashboard size={14} /> DASHBOARD
+            </button>
             <div className="w-px h-6 bg-gray-200 dark:bg-white/10 transition-colors" />
             <button onClick={handleSignOut} className="text-xs font-bold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
               SIGN OUT

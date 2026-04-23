@@ -23,12 +23,13 @@ Final code submitted:
 
 Give a structured evaluation as JSON with these exact keys:
 {{
-  "overall_score": <number 1-10>,
+  "overall_score": <number 1-100>,
   "hire_recommendation": <"Strong Hire" | "Hire" | "No Hire">,
-  "problem_solving": <number 1-10>,
-  "code_quality": <number 1-10>,
-  "communication": <number 1-10>,
-  "optimization": <number 1-10>,
+  "problem_solving": <number 1-100>,
+  "code_quality": <number 1-100>,
+  "communication": <number 1-100>,
+  "optimization": <number 1-100>,
+  "debugging": <number 1-100>,
   "time_complexity": "<e.g. O(n)>",
   "space_complexity": "<e.g. O(n)>",
   "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],

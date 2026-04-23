@@ -309,6 +309,11 @@ export default function InterviewScreen() {
         chat_history: historyToUse,
         user_id: user?.id
       });
+      
+      if (res.id) {
+        router.push(`/candidate/reports/${res.id}`);
+        return;
+      }
       setReport(res);
     } catch (e) {
       alert("Failed to generate report.");

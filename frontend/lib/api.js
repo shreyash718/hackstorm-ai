@@ -126,3 +126,33 @@ export const transcribeAudio = async (audioBlob, onProgress) => {
   });
   return response.data;
 };
+
+export const fetchCandidateReports = async (userId) => {
+  const response = await api.get(`/candidate/reports?user_id=${userId}`);
+  return response.data;
+};
+
+export const fetchCandidateReport = async (reportId) => {
+  const response = await api.get(`/candidate/reports/${reportId}`);
+  return response.data;
+};
+
+export const setTargetCompany = async (data) => {
+  const response = await api.post('/candidate/target-company', data);
+  return response.data;
+};
+
+export const fetchTargetCompany = async (userId) => {
+  const response = await api.get(`/candidate/target-company?user_id=${userId}`);
+  return response.data;
+};
+
+export const fetchCandidateProgress = async (userId) => {
+  const response = await api.get(`/candidate/progress?user_id=${userId}`);
+  return response.data;
+};
+
+export const fetchBenchmarks = async () => {
+  const response = await api.get('/candidate/benchmarks');
+  return response.data;
+};

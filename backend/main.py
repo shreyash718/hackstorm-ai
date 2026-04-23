@@ -381,7 +381,23 @@ async def evaluate(req: EvaluateRequest):
     
     report_data["id"] = str(uuid.uuid4())
     report_data["session_id"] = session_id
+    report_data["user_id"] = req.user_id
+    report_data["final_code"] = req.code
     save_report(report_data)
+    
+    # Trigger readiness calculation if target exists
+    if req.user_id:
+        target = get_target_company(req.user_id)
+        if target:
+            benchmark = get_benchmark(target['company_name'], target['role'], target['target_level'])
+            if benchmark:
+                readiness = calculate_readiness(report_data, benchmark)
+                save_progress_snapshot(req.user_id, target['id'], readiness)
+                report_data["readiness"] = {
+                    "target_company": target['company_name'],
+                    "score": readiness["readiness_score"],
+                    "skill_gaps": readiness["skill_gaps"]
+                }
     
     return report_data
 
@@ -678,6 +694,121 @@ def fetch_assessment(assessment_id: str):
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
     return assessment
+
+def calculate_readiness(candidate_scores: dict, benchmark: dict):
+    # weights: problem_solving: 30%, optimization: 25%, code_quality: 20%, communication: 15%, debugging: 10%
+    weights = {
+        'problem_solving': 0.30,
+        'optimization': 0.25,
+        'code_quality': 0.20,
+        'communication': 0.15,
+        'debugging': 0.10
+    }
+    
+    skill_ratios = []
+    skill_gaps = {}
+    
+    # Skills mapping (from score key to benchmark column name)
+    skills = [
+        ('communication', 'communication_required'),
+        ('problem_solving', 'problem_solving_required'),
+        ('code_quality', 'code_quality_required'),
+        ('optimization', 'optimization_required'),
+        ('debugging', 'debugging_required')
+    ]
+    
+    for skill, bench_key in skills:
+        candidate_val = candidate_scores.get(skill, 0)
+        required_val = benchmark.get(bench_key, 100)
+        
+        ratio = min(1.0, candidate_val / required_val) if required_val > 0 else 1.0
+        skill_ratios.append(ratio * weights[skill])
+        skill_gaps[skill] = candidate_val - required_val
+        
+    readiness_score = int(sum(skill_ratios) * 100)
+    return {
+        "readiness_score": readiness_score,
+        "skill_gaps": skill_gaps
+    }
+
+# --- Candidate Dashboard Routes ---
+
+from database import (
+    get_candidate_reports, get_report_by_id, set_target_company, 
+    get_target_company, get_company_benchmarks, get_benchmark,
+    save_progress_snapshot, get_progress_history
+)
+from models import TargetCompanyRequest, ProgressResponse, ProgressSnapshotModel
+
+@app.get("/candidate/reports")
+def list_candidate_reports(user_id: str):
+    return get_candidate_reports(user_id)
+
+@app.get("/candidate/reports/{report_id}")
+def fetch_specific_report(report_id: str):
+    report = get_report_by_id(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return report
+
+@app.post("/candidate/target-company")
+def update_target_company(req: TargetCompanyRequest):
+    success = set_target_company(req.user_id, req.company_name, req.role, req.target_level)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update target company")
+    
+    # Recalculate readiness using latest report if exists
+    reports = get_candidate_reports(req.user_id)
+    if reports:
+        latest = reports[0]
+        benchmark = get_benchmark(req.company_name, req.role, req.target_level)
+        if benchmark:
+            readiness = calculate_readiness(latest, benchmark)
+            save_progress_snapshot(req.user_id, None, readiness) # target_id can be None here or we fetch it
+            
+    return {"message": "Target company updated"}
+
+@app.get("/candidate/target-company")
+def fetch_target_company(user_id: str):
+    target = get_target_company(user_id)
+    if not target:
+        return {}
+    return target
+
+@app.get("/candidate/progress", response_model=ProgressResponse)
+def get_candidate_progress(user_id: str):
+    target = get_target_company(user_id)
+    history = get_progress_history(user_id)
+    
+    formatted_history = [
+        ProgressSnapshotModel(date=h['date'].strftime("%Y-%m-%d"), readiness_score=h['readiness_score'])
+        for h in history
+    ]
+    
+    current_readiness = formatted_history[-1].readiness_score if formatted_history else 0
+    
+    # Get skill gaps from latest snapshot if possible
+    skill_gaps = {}
+    if target:
+        reports = get_candidate_reports(user_id)
+        if reports:
+            latest = reports[0]
+            benchmark = get_benchmark(target['company_name'], target['role'], target['target_level'])
+            if benchmark:
+                res = calculate_readiness(latest, benchmark)
+                skill_gaps = res["skill_gaps"]
+
+    return ProgressResponse(
+        target_company=target['company_name'] if target else None,
+        target_level=target['target_level'] if target else None,
+        current_readiness=current_readiness,
+        history=formatted_history,
+        skill_gaps=skill_gaps
+    )
+
+@app.get("/candidate/benchmarks")
+def list_benchmarks():
+    return get_company_benchmarks()
 
 if __name__ == "__main__":
     import uvicorn
