@@ -41,6 +41,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [difficultyFilter, setDifficultyFilter] = useState('All');
+  const [startingId, setStartingId] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -113,12 +114,14 @@ export default function Home() {
       return;
     }
 
+    setStartingId(id);
     try {
       const session = await startSession(id);
       localStorage.setItem('interview_session', JSON.stringify(session));
       router.push(`/interview/${id}`);
     } catch (e) {
       alert("Failed to start session. Is the backend running?");
+      setStartingId(null);
     }
   };
 
@@ -561,9 +564,17 @@ export default function Home() {
                             
                             <motion.button 
                                 whileHover={{ scale: 1.1, x: 5 }}
-                                className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-blue-600 dark:text-blue-400 opacity-50 group-hover:opacity-100 transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)] ${
+                                    startingId === p.id 
+                                    ? 'bg-blue-600 text-white' 
+                                    : 'bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 opacity-50 group-hover:opacity-100'
+                                }`}
                             >
-                                <ArrowRight size={16} />
+                                {startingId === p.id ? (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                                ) : (
+                                    <ArrowRight size={16} />
+                                )}
                             </motion.button>
                         </div>
                     </div>
