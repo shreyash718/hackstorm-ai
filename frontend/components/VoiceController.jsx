@@ -114,7 +114,15 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch(e) {}
+      try { 
+        recognitionRef.current.stop(); 
+        // Abort as a fallback to ensure it really stops in all browsers
+        setTimeout(() => {
+          try { recognitionRef.current.abort(); } catch(e) {}
+        }, 100);
+      } catch(e) {
+        try { recognitionRef.current.abort(); } catch(e2) {}
+      }
     }
     cleanupStream();
     setStatus('ready');
@@ -167,10 +175,11 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       const key = e.key.toLowerCase();
       if (key === 's') {
         e.preventDefault();
-        if (status === 'idle' && !isDisabled) {
-          startRecording();
-        } else if (status === 'recording') {
+        console.log("VoiceController: 'S' pressed. Status:", status);
+        if (status === 'recording') {
           stopRecording();
+        } else if (status === 'idle' && !isDisabled) {
+          startRecording();
         }
       } else if (e.key === 'Enter' && status === 'ready') {
         e.preventDefault();
