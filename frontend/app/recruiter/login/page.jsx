@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { API_URL } from '@/lib/api';
+import { checkRecruiter } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, CheckCircle2, Search, Code2, Sparkles, UserCheck } from 'lucide-react';
@@ -150,32 +150,18 @@ export default function RecruiterLoginPage() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        
-        if (data?.user?.id) {
-          await fetch(`${API_URL}/recruiter/make`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: data.user.id })
-          });
-        }
-        
-        alert('Account created! You can now sign in.');
+        alert('Account created! Ask an admin to grant recruiter access before signing in.');
         setIsSignUp(false);
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         
-        const res = await fetch(`${API_URL}/recruiter/check/${data.user.id}`);
-        const checkData = await res.json();
-        
+        const checkData = await checkRecruiter();
         if (!checkData.is_recruiter) {
-          await fetch('http://localhost:8000/recruiter/make', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: data.user.id })
-          });
+          await supabase.auth.signOut();
+          throw new Error('Your account does not have recruiter access yet.');
         }
         
         router.push('/recruiter/dashboard');

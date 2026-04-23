@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { API_URL } from '@/lib/api';
+import { checkRecruiter, fetchRecruiterAssessments } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Plus, Copy, CheckCircle2, Link as LinkIcon, Users, Calendar, Code2, Sparkles, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -40,24 +40,12 @@ export default function RecruiterDashboard() {
       setUser(session.user);
 
       try {
-        // Ensure user is registered as recruiter (handles Google OAuth users)
-        const checkRes = await fetch(`${API_URL}/recruiter/check/${session.user.id}`);
-        const checkData = await checkRes.json();
-        
+        const checkData = await checkRecruiter();
         if (!checkData.is_recruiter) {
-          await fetch(`${API_URL}/recruiter/make`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: session.user.id })
-          });
+          throw new Error("Not authorized as recruiter.");
         }
 
-        const res = await fetch(`${API_URL}/recruiter/assessments/${session.user.id}`);
-        if (!res.ok) {
-            if(res.status === 403) throw new Error("Not authorized as recruiter.");
-            throw new Error("Failed to load assessments.");
-        }
-        const data = await res.json();
+        const data = await fetchRecruiterAssessments();
         setAssessments(data);
       } catch (err) {
         setError(err.message);

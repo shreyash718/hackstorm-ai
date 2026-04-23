@@ -3,8 +3,16 @@ import os
 import json
 from typing import Dict, Any, List
 
+_client = None
+
+def get_gemini_client():
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _client
+
 def generate_report(problem: Dict[str, Any], chat_history: List[Dict[str, str]], final_code: str) -> Dict[str, Any]:
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    client = get_gemini_client()
 
     history_text = ""
     for msg in chat_history:

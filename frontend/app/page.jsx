@@ -56,22 +56,22 @@ export default function Home() {
       redirectHandled = true;
       localStorage.removeItem('redirectAfterAuth');
 
-      // If recruiter flow: register as recruiter + redirect to dashboard
+      // If recruiter flow: verify recruiter access before redirecting.
       if (redirectPath.includes('recruiter')) {
         try {
-          const res = await fetch(`${API_URL}/recruiter/check/${session.user.id}`);
+          const res = await fetch(`${API_URL}/recruiter/check`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
           const checkData = await res.json();
           if (!checkData.is_recruiter) {
-            await fetch(`${API_URL}/recruiter/make`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: session.user.id })
-            });
+            window.location.href = '/recruiter/login';
+            return;
           }
         } catch (err) {
-          console.error('Error during recruiter registration:', err);
+          console.error('Error during recruiter verification:', err);
+          window.location.href = '/recruiter/login';
+          return;
         }
-        // Redirect to recruiter dashboard (same domain)
         window.location.href = redirectPath;
         return;
       }

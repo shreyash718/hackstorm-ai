@@ -18,29 +18,26 @@ function AuthCallbackContent() {
       if (handled) return;
       handled = true;
 
-      const userId = session.user.id;
-
       // Get redirect destination from localStorage (set by /auth/google on this same domain)
       const storedRedirect = localStorage.getItem('redirectAfterAuth');
       const paramRedirect = searchParams.get('next');
-      const next = storedRedirect || paramRedirect || '/';
+      let next = storedRedirect || paramRedirect || '/';
 
       if (storedRedirect) localStorage.removeItem('redirectAfterAuth');
 
-      // Auto-register as recruiter if heading to recruiter area
+      // Verify recruiter access if heading to recruiter area.
       if (next.includes('recruiter')) {
         try {
-          const res = await fetch(`${API_URL}/recruiter/check/${userId}`);
+          const res = await fetch(`${API_URL}/recruiter/check`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
           const checkData = await res.json();
           if (!checkData.is_recruiter) {
-            await fetch(`${API_URL}/recruiter/make`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: userId })
-            });
+            next = '/recruiter/login';
           }
         } catch (err) {
-          console.error('Error during recruiter check/make:', err);
+          console.error('Error during recruiter verification:', err);
+          next = '/recruiter/login';
         }
       }
 

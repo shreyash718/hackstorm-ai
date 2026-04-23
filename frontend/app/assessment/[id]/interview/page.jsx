@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { sendChatMessage, streamChatMessage, evaluateInterview } from '@/lib/api';
+import { sendChatMessage, streamChatMessage, evaluateAssessmentInterview } from '@/lib/api';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import CodeEditor from '@/components/CodeEditor';
 import ChatPanel from '@/components/ChatPanel';
@@ -316,7 +316,7 @@ export default function AssessmentInterviewScreen() {
     window.speechSynthesis.cancel();
     setEvaluating(true);
     try {
-      await evaluateInterview({
+      await evaluateAssessmentInterview(assessment.id, {
         problem_id: question.problem_id,
         code,
         chat_history: historyToUse,

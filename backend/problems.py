@@ -1,5 +1,5 @@
 import json
-from database import get_db_connection
+from database import get_db_connection, release_db_connection
 
 def get_all_problems():
     conn = get_db_connection()
@@ -13,7 +13,7 @@ def get_all_problems():
         print(f"Error fetching problems: {e}")
         return []
     finally:
-        conn.close()
+        release_db_connection(conn)
 
 def get_all_problems_admin():
     conn = get_db_connection()
@@ -27,7 +27,7 @@ def get_all_problems_admin():
         print(f"Error fetching problems: {e}")
         return []
     finally:
-        conn.close()
+        release_db_connection(conn)
 
 def get_problem(problem_id: int):
     conn = get_db_connection()
@@ -40,7 +40,7 @@ def get_problem(problem_id: int):
         print(f"Error fetching problem {problem_id}: {e}")
         return None
     finally:
-        conn.close()
+        release_db_connection(conn)
 
 def add_problem(data: dict):
     conn = get_db_connection()
@@ -66,4 +66,4 @@ def add_problem(data: dict):
         print(f"Error adding problem: {e}")
         return None
     finally:
-        conn.close()
+        release_db_connection(conn)

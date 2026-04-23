@@ -12,6 +12,9 @@ from fastapi.responses import StreamingResponse
 import json
 from evaluator import generate_report
 import resend
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
+import base64
 from database import (
     save_session, update_session, save_report, get_report, check_admin, 
     get_all_sessions, get_all_reports, get_all_users, delete_user_by_id,
@@ -19,7 +22,8 @@ from database import (
     check_recruiter, make_recruiter, revoke_recruiter, create_assessment_in_db,
     get_assessments_by_recruiter, get_assessment_details,
     get_all_problems_db, update_problem_in_db, delete_problem_in_db, toggle_problem_visibility_db,
-    save_otp, verify_otp, get_user_email_by_id
+    save_otp, verify_otp, get_user_email_by_id,
+    get_db_connection, release_db_connection
 )
 from supabase import create_client, Client
 import os
@@ -38,6 +42,29 @@ def get_supabase_admin() -> Client:
 load_dotenv()
 
 app = FastAPI(title="HackStorm Interview AI")
+
+security = HTTPBearer()
+
+async def get_current_user_id(auth: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Verifies Supabase JWT and returns the user ID."""
+    try:
+        sb = get_supabase_admin()
+        res = sb.auth.get_user(auth.credentials)
+        if res.user:
+            return str(res.user.id)
+        raise HTTPException(status_code=401, detail="Invalid session")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
+async def get_admin_user(user_id: str = Depends(get_current_user_id)) -> str:
+    if not check_admin(user_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user_id
+
+async def get_recruiter_user(user_id: str = Depends(get_current_user_id)) -> str:
+    if not check_recruiter(user_id) and not check_admin(user_id):
+        raise HTTPException(status_code=403, detail="Recruiter access required")
+    return user_id
 
 # Initialize Whisper model globally (using tiny.en for maximum speed on CPU)
 try:
@@ -68,10 +95,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
     if whisper_model is None:
         raise HTTPException(status_code=500, detail="Transcription service not available")
     
+    # Validation
+    MAX_SIZE = 10 * 1024 * 1024 # 10MB
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="Audio file too large")
+    
     try:
         # Save to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
-            tmp.write(await file.read())
+            tmp.write(content)
             tmp_path = tmp.name
 
         # Run in thread pool to avoid blocking the event loop
@@ -96,7 +129,10 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        os.getenv("FRONTEND_URL", "https://hackstorm.vercel.app")
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -249,18 +285,15 @@ def health_db():
     db_url = db_url.strip()
     
     # Obfuscate password for safe display
-    safe_url = db_url.replace(db_url.split('@')[0].split(':')[-1], "*****") if '@' in db_url else "Invalid URL Format"
-    
     try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor, connect_timeout=5)
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        conn.close()
-        return {"status": "success", "message": "Successfully connected to database", "url": safe_url}
-    except Exception as e:
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc(), "url": safe_url}
+        # Sanitize health check to avoid leaking DB details
+        conn = get_db_connection()
+        if not conn:
+            return {"status": "unhealthy"}
+        release_db_connection(conn)
+        return {"status": "healthy"}
+    except Exception:
+        return {"status": "unhealthy"}
 
 @app.get("/problems")
 def list_problems():
@@ -354,8 +387,7 @@ async def chat(req: ChatRequest):
         "is_complete": is_complete
     }
 
-@app.post("/evaluate")
-async def evaluate(req: EvaluateRequest):
+def persist_evaluation_report(req: EvaluateRequest, user_id: str = None):
     problem = get_problem(req.problem_id)
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
@@ -370,7 +402,7 @@ async def evaluate(req: EvaluateRequest):
     session_id = str(uuid.uuid4())
     session_data = {
         "id": session_id,
-        "user_id": req.user_id,
+        "user_id": user_id,
         "problem_id": req.problem_id,
         "phase": "COMPLETED",
         "chat_history": history,
@@ -381,18 +413,21 @@ async def evaluate(req: EvaluateRequest):
     
     report_data["id"] = str(uuid.uuid4())
     report_data["session_id"] = session_id
-    report_data["user_id"] = req.user_id
+    report_data["user_id"] = user_id
     report_data["final_code"] = req.code
-    save_report(report_data)
+    
+    if not save_report(report_data):
+        raise HTTPException(status_code=500, detail="Failed to save report to database")
     
     # Trigger readiness calculation if target exists
-    if req.user_id:
-        target = get_target_company(req.user_id)
+    if user_id:
+        target = get_target_company(user_id)
         if target:
             benchmark = get_benchmark(target['company_name'], target['role'], target['target_level'])
             if benchmark:
                 readiness = calculate_readiness(report_data, benchmark)
-                save_progress_snapshot(req.user_id, target['id'], readiness)
+                readiness["ai_analysis"] = generate_ai_analysis(readiness, report_data)
+                save_progress_snapshot(user_id, target['id'], readiness)
                 report_data["readiness"] = {
                     "target_company": target['company_name'],
                     "score": readiness["readiness_score"],
@@ -401,17 +436,24 @@ async def evaluate(req: EvaluateRequest):
     
     return report_data
 
+@app.post("/evaluate")
+async def evaluate(req: EvaluateRequest, user_id: str = Depends(get_current_user_id)):
+    return persist_evaluation_report(req, user_id=user_id)
+
 @app.get("/report/{session_id}")
-def fetch_report(session_id: str):
+def fetch_report(session_id: str, user_id: str = Depends(get_current_user_id)):
     report = get_report(session_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Ownership check
+    if report.get('user_id') and report['user_id'] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied to this report")
+        
     return report
 
 @app.get("/admin/dashboard")
-def get_admin_dashboard(user_id: str):
-    if not check_admin(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def get_admin_dashboard(user_id: str = Depends(get_admin_user)):
     
     sessions = get_all_sessions()
     reports = get_all_reports()
@@ -448,9 +490,7 @@ class AdminActionRequest(BaseModel):
     password: str = None
 
 @app.post("/admin/users")
-def add_new_user(req: AdminActionRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def add_new_user(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
     try:
         sb = get_supabase_admin()
         res = sb.auth.admin.create_user({
@@ -463,9 +503,7 @@ def add_new_user(req: AdminActionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/admin/users/{target_id}")
-def delete_user(target_id: str, user_id: str):
-    if not check_admin(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized")
+def delete_user(target_id: str, admin_id: str = Depends(get_admin_user)):
     # Delete from Supabase via API for complete cleanup
     try:
         sb = get_supabase_admin()
@@ -478,34 +516,28 @@ def delete_user(target_id: str, user_id: str):
     return {"message": "User deleted"}
 
 @app.post("/admin/admins")
-def promote_admin(req: AdminActionRequest):
-    if not check_admin(req.user_id): raise HTTPException(status_code=403, detail="Not authorized")
+def promote_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
     make_admin(req.target_id)
     return {"message": "Promoted to admin"}
 
 @app.delete("/admin/admins/{target_id}")
-def remove_admin(target_id: str, user_id: str):
-    if not check_admin(user_id): raise HTTPException(status_code=403, detail="Not authorized")
-    if target_id == user_id: raise HTTPException(status_code=400, detail="Cannot revoke yourself")
+def remove_admin(target_id: str, admin_id: str = Depends(get_admin_user)):
+    if target_id == admin_id: raise HTTPException(status_code=400, detail="Cannot revoke yourself")
     revoke_admin(target_id)
     return {"message": "Admin revoked"}
 
 @app.post("/admin/recruiters")
-def promote_recruiter_admin(req: AdminActionRequest):
-    if not check_admin(req.user_id): raise HTTPException(status_code=403, detail="Not authorized")
+def promote_recruiter_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
     make_recruiter(req.target_id)
     return {"message": "Promoted to recruiter"}
 
 @app.delete("/admin/recruiters/{target_id}")
-def remove_recruiter_admin(target_id: str, user_id: str):
-    if not check_admin(user_id): raise HTTPException(status_code=403, detail="Not authorized")
+def remove_recruiter_admin(target_id: str, admin_id: str = Depends(get_admin_user)):
     revoke_recruiter(target_id)
     return {"message": "Recruiter revoked"}
 
 @app.post("/admin/problems")
-def create_problem(req: CreateProblemRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def create_problem(req: CreateProblemRequest, admin_id: str = Depends(get_admin_user)):
     
     problem_id = add_problem({
         "title": req.title,
@@ -522,9 +554,7 @@ def create_problem(req: CreateProblemRequest):
     return {"message": "Problem added successfully", "problem_id": problem_id}
 
 @app.put("/admin/problems/{problem_id}")
-def update_problem(problem_id: int, req: CreateProblemRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def update_problem(problem_id: int, req: CreateProblemRequest, admin_id: str = Depends(get_admin_user)):
     
     success = update_problem_in_db(problem_id, {
         "title": req.title,
@@ -541,9 +571,7 @@ def update_problem(problem_id: int, req: CreateProblemRequest):
     return {"message": "Problem updated successfully"}
 
 @app.delete("/admin/problems/{problem_id}")
-def delete_problem(problem_id: int, user_id: str):
-    if not check_admin(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def delete_problem(problem_id: int, admin_id: str = Depends(get_admin_user)):
     
     success = delete_problem_in_db(problem_id)
     if not success:
@@ -556,9 +584,7 @@ class VisibilityRequest(BaseModel):
     is_public: bool
 
 @app.patch("/admin/problems/{problem_id}/visibility")
-def toggle_visibility(problem_id: int, req: VisibilityRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+def toggle_visibility(problem_id: int, req: VisibilityRequest, admin_id: str = Depends(get_admin_user)):
     
     success = toggle_problem_visibility_db(problem_id, req.is_public)
     if not success:
@@ -574,11 +600,8 @@ class OTPSendRequest(BaseModel):
     user_id: str
 
 @app.post("/admin/otp/send")
-def send_admin_otp(req: OTPSendRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not an authorized admin")
-    
-    email = get_user_email_by_id(req.user_id)
+def send_admin_otp(req: OTPSendRequest, admin_id: str = Depends(get_admin_user)):
+    email = get_user_email_by_id(admin_id)
     if not email:
         raise HTTPException(status_code=404, detail="Admin email not found")
     
@@ -642,11 +665,8 @@ class OTPVerifyRequest(BaseModel):
     otp_code: str
 
 @app.post("/admin/otp/verify")
-def verify_admin_otp(req: OTPVerifyRequest):
-    if not check_admin(req.user_id):
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    email = get_user_email_by_id(req.user_id)
+def verify_admin_otp(req: OTPVerifyRequest, admin_id: str = Depends(get_admin_user)):
+    email = get_user_email_by_id(admin_id)
     if not email or not verify_otp(email, req.otp_code):
         raise HTTPException(status_code=400, detail="Invalid or expired verification code")
         
@@ -654,25 +674,19 @@ def verify_admin_otp(req: OTPVerifyRequest):
 
 from models import MakeRecruiterRequest, CreateAssessmentRequest
 
-@app.post("/recruiter/make")
-def promote_to_recruiter(req: MakeRecruiterRequest):
-    make_recruiter(req.user_id)
-    return {"message": "User promoted to recruiter successfully"}
-
-@app.get("/recruiter/check/{user_id}")
-def verify_recruiter(user_id: str):
+# Public recruiter promotion removed for security. Recruiters must be promoted by an admin.
+@app.get("/recruiter/check")
+def verify_recruiter_status(user_id: str = Depends(get_current_user_id)):
     is_recruiter = check_recruiter(user_id)
     return {"is_recruiter": is_recruiter}
 
 @app.post("/assessment")
-def create_assessment(req: CreateAssessmentRequest):
-    if not check_recruiter(req.recruiter_id):
-        raise HTTPException(status_code=403, detail="Not authorized as recruiter")
+def create_assessment(req: CreateAssessmentRequest, recruiter_id: str = Depends(get_recruiter_user)):
     
     assessment_id = str(uuid.uuid4())
     success = create_assessment_in_db(
         assessment_id=assessment_id,
-        recruiter_id=req.recruiter_id,
+        recruiter_id=recruiter_id,
         title=req.title,
         questions=req.questions
     )
@@ -680,13 +694,29 @@ def create_assessment(req: CreateAssessmentRequest):
         raise HTTPException(status_code=500, detail="Failed to create assessment")
     
     return {"message": "Assessment created", "assessment_id": assessment_id}
-
-@app.get("/recruiter/assessments/{user_id}")
-def list_assessments(user_id: str):
-    if not check_recruiter(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized as recruiter")
+def generate_ai_analysis(readiness: dict, report: dict):
+    # Simple logic to generate feedback based on gaps
+    gaps = readiness.get('skill_gaps', {})
+    if not gaps: return "Complete more interviews to get analysis."
     
-    return get_assessments_by_recruiter(user_id)
+    worst_skill = min(gaps, key=gaps.get)
+    best_skill = max(gaps, key=gaps.get)
+    
+    analysis = f"Your overall readiness is {readiness['readiness_score']}%. "
+    if gaps[worst_skill] < -10:
+        analysis += f"Focus on {worst_skill.replace('_', ' ')}: you are {abs(gaps[worst_skill])}% below the target bar. "
+    else:
+        analysis += f"Your skills are well-balanced for this role. "
+        
+    analysis += f"Strongest area: {best_skill.replace('_', ' ')}. "
+    
+    if report.get('improvements') and len(report['improvements']) > 0:
+        analysis += f"Suggested next step: {report['improvements'][0]}."
+        
+    return analysis
+@app.get("/recruiter/assessments")
+def list_assessments(recruiter_id: str = Depends(get_recruiter_user)):
+    return get_assessments_by_recruiter(recruiter_id)
 
 @app.get("/assessment/{assessment_id}")
 def fetch_assessment(assessment_id: str):
@@ -694,6 +724,19 @@ def fetch_assessment(assessment_id: str):
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
     return assessment
+
+@app.post("/assessment/{assessment_id}/evaluate")
+async def evaluate_assessment_candidate(assessment_id: str, req: EvaluateRequest):
+    assessment = get_assessment_details(assessment_id)
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    valid_problem_ids = {q["problem_id"] for q in assessment.get("questions", [])}
+    if req.problem_id not in valid_problem_ids:
+        raise HTTPException(status_code=400, detail="Problem does not belong to this assessment")
+
+    req.assessment_id = assessment_id
+    return persist_evaluation_report(req, user_id=None)
 
 def calculate_readiness(candidate_scores: dict, benchmark: dict):
     # weights: problem_solving: 30%, optimization: 25%, code_quality: 20%, communication: 15%, debugging: 10%
@@ -728,7 +771,21 @@ def calculate_readiness(candidate_scores: dict, benchmark: dict):
     readiness_score = int(sum(skill_ratios) * 100)
     return {
         "readiness_score": readiness_score,
-        "skill_gaps": skill_gaps
+        "skill_gaps": skill_gaps,
+        "candidate_scores": {
+            "problem_solving": candidate_scores.get("problem_solving", 0),
+            "optimization": candidate_scores.get("optimization", 0),
+            "code_quality": candidate_scores.get("code_quality", 0),
+            "communication": candidate_scores.get("communication", 0),
+            "debugging": candidate_scores.get("debugging", 0)
+        },
+        "benchmark_scores": {
+            "problem_solving": benchmark.get("problem_solving_required", 0),
+            "optimization": benchmark.get("optimization_required", 0),
+            "code_quality": benchmark.get("code_quality_required", 0),
+            "communication": benchmark.get("communication_required", 0),
+            "debugging": benchmark.get("debugging_required", 0)
+        }
     }
 
 # --- Candidate Dashboard Routes ---
@@ -741,44 +798,48 @@ from database import (
 from models import TargetCompanyRequest, ProgressResponse, ProgressSnapshotModel
 
 @app.get("/candidate/reports")
-def list_candidate_reports(user_id: str):
+def list_candidate_reports(user_id: str = Depends(get_current_user_id)):
     return get_candidate_reports(user_id)
 
 @app.get("/candidate/reports/{report_id}")
-def fetch_specific_report(report_id: str):
-    report = get_report_by_id(report_id)
+def fetch_specific_report(report_id: str, user_id: str = Depends(get_current_user_id)):
+    report = get_report_by_id(report_id, user_id)
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(status_code=404, detail="Report not found or access denied")
     return report
 
 @app.post("/candidate/target-company")
-def update_target_company(req: TargetCompanyRequest):
-    success = set_target_company(req.user_id, req.company_name, req.role, req.target_level)
-    if not success:
+def update_target_company(req: TargetCompanyRequest, user_id: str = Depends(get_current_user_id)):
+    target_id = set_target_company(user_id, req.company_name, req.role, req.target_level)
+    if not target_id:
         raise HTTPException(status_code=500, detail="Failed to update target company")
     
     # Recalculate readiness using latest report if exists
-    reports = get_candidate_reports(req.user_id)
+    reports = get_candidate_reports(user_id)
     if reports:
         latest = reports[0]
         benchmark = get_benchmark(req.company_name, req.role, req.target_level)
         if benchmark:
             readiness = calculate_readiness(latest, benchmark)
-            save_progress_snapshot(req.user_id, None, readiness) # target_id can be None here or we fetch it
+            readiness["ai_analysis"] = generate_ai_analysis(readiness, latest)
+            save_progress_snapshot(user_id, target_id, readiness)
             
-    return {"message": "Target company updated"}
+    return {"message": "Target company updated", "target_id": target_id}
 
 @app.get("/candidate/target-company")
-def fetch_target_company(user_id: str):
+def fetch_target_company(user_id: str = Depends(get_current_user_id)):
     target = get_target_company(user_id)
     if not target:
         return {}
     return target
 
 @app.get("/candidate/progress", response_model=ProgressResponse)
-def get_candidate_progress(user_id: str):
+def get_candidate_progress(user_id: str = Depends(get_current_user_id)):
     target = get_target_company(user_id)
-    history = get_progress_history(user_id)
+    
+    # Get history for ACTIVE target if exists, else all history
+    target_id = target['id'] if target else None
+    history = get_progress_history(user_id, target_id)
     
     formatted_history = [
         ProgressSnapshotModel(date=h['date'].strftime("%Y-%m-%d"), readiness_score=h['readiness_score'])
@@ -787,8 +848,12 @@ def get_candidate_progress(user_id: str):
     
     current_readiness = formatted_history[-1].readiness_score if formatted_history else 0
     
-    # Get skill gaps from latest snapshot if possible
+    # Get skill gaps & analysis from latest report if possible
     skill_gaps = {}
+    candidate_scores = {}
+    benchmark_scores = {}
+    ai_analysis = "Set a target company and complete an interview to see your analysis."
+    
     if target:
         reports = get_candidate_reports(user_id)
         if reports:
@@ -797,13 +862,19 @@ def get_candidate_progress(user_id: str):
             if benchmark:
                 res = calculate_readiness(latest, benchmark)
                 skill_gaps = res["skill_gaps"]
+                candidate_scores = res["candidate_scores"]
+                benchmark_scores = res["benchmark_scores"]
+                ai_analysis = generate_ai_analysis(res, latest)
 
     return ProgressResponse(
         target_company=target['company_name'] if target else None,
         target_level=target['target_level'] if target else None,
         current_readiness=current_readiness,
         history=formatted_history,
-        skill_gaps=skill_gaps
+        skill_gaps=skill_gaps,
+        ai_analysis=ai_analysis,
+        candidate_scores=candidate_scores,
+        benchmark_scores=benchmark_scores
     )
 
 @app.get("/candidate/benchmarks")

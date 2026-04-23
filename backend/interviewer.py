@@ -43,15 +43,20 @@ CONVERSATION SO FAR:
 {history}
 """
 
+_openai_client = None
+
 def get_llm_client():
+    global _openai_client
     provider = os.getenv("LLM_PROVIDER", "ollama").lower()
     if provider == "ollama":
-        return None  # We use the ollama library directly
+        return None
     
-    return openai.OpenAI(
-        api_key=os.getenv("LLM_API_KEY"),
-        base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-    )
+    if _openai_client is None:
+        _openai_client = openai.OpenAI(
+            api_key=os.getenv("LLM_API_KEY"),
+            base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+        )
+    return _openai_client
 
 def call_gemini(system_prompt: str, user_message: str) -> str:
     """Generic LLM call (keeping name for compatibility)."""

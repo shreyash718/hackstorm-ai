@@ -26,13 +26,13 @@ export default function CandidateReports() {
         return;
       }
       setUser(session.user);
-      loadData(session.user.id);
+      loadData();
     });
   }, []);
 
-  const loadData = async (userId) => {
+  const loadData = async () => {
     try {
-      const data = await fetchCandidateReports(userId);
+      const data = await fetchCandidateReports();
       setReports(data);
     } catch (err) {
       console.error('Error loading reports:', err);

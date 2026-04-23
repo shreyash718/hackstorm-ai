@@ -1,9 +1,19 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const api = axios.create({
   baseURL: API_URL,
+});
+
+// Add auth header to every request if session exists
+api.interceptors.request.use(async (config) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return config;
 });
 
 export const fetchProblems = async () => {
@@ -39,6 +49,11 @@ export const streamChatMessage = async (data) => {
 
 export const evaluateInterview = async (data) => {
   const response = await api.post('/evaluate', data);
+  return response.data;
+};
+
+export const evaluateAssessmentInterview = async (assessmentId, data) => {
+  const response = await api.post(`/assessment/${assessmentId}/evaluate`, data);
   return response.data;
 };
 
@@ -127,8 +142,8 @@ export const transcribeAudio = async (audioBlob, onProgress) => {
   return response.data;
 };
 
-export const fetchCandidateReports = async (userId) => {
-  const response = await api.get(`/candidate/reports?user_id=${userId}`);
+export const fetchCandidateReports = async () => {
+  const response = await api.get('/candidate/reports');
   return response.data;
 };
 
@@ -142,17 +157,32 @@ export const setTargetCompany = async (data) => {
   return response.data;
 };
 
-export const fetchTargetCompany = async (userId) => {
-  const response = await api.get(`/candidate/target-company?user_id=${userId}`);
+export const fetchTargetCompany = async () => {
+  const response = await api.get('/candidate/target-company');
   return response.data;
 };
 
-export const fetchCandidateProgress = async (userId) => {
-  const response = await api.get(`/candidate/progress?user_id=${userId}`);
+export const fetchCandidateProgress = async () => {
+  const response = await api.get('/candidate/progress');
   return response.data;
 };
 
 export const fetchBenchmarks = async () => {
   const response = await api.get('/candidate/benchmarks');
+  return response.data;
+};
+
+export const checkRecruiter = async () => {
+  const response = await api.get('/recruiter/check');
+  return response.data;
+};
+
+export const fetchRecruiterAssessments = async () => {
+  const response = await api.get('/recruiter/assessments');
+  return response.data;
+};
+
+export const createAssessment = async (data) => {
+  const response = await api.post('/assessment', data);
   return response.data;
 };

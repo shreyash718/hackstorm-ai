@@ -37,8 +37,8 @@ export default function CandidateDashboard() {
   const loadData = async (userId) => {
     try {
       const [progressData, reportsData] = await Promise.all([
-        fetchCandidateProgress(userId),
-        fetchCandidateReports(userId)
+        fetchCandidateProgress(),
+        fetchCandidateReports()
       ]);
       setProgress(progressData);
       setReports(reportsData);
@@ -61,11 +61,15 @@ export default function CandidateDashboard() {
     );
   }
 
-  const radarData = progress?.skill_gaps ? Object.entries(progress.skill_gaps).map(([skill, gap]) => ({
-    subject: skill.charAt(0).toUpperCase() + skill.slice(1).replace('_', ' '),
-    A: 100 + gap, // Gap is candidate - required, so 100+gap shows candidate score relative to required (where 100 is benchmark)
-    fullMark: 100,
-  })) : [];
+  const radarData = progress?.candidate_scores ? Object.entries(progress.candidate_scores).map(([skill, score]) => {
+    const benchScore = progress.benchmark_scores?.[skill] || 0;
+    return {
+      subject: skill.charAt(0).toUpperCase() + skill.slice(1).replace('_', ' '),
+      Candidate: score,
+      Benchmark: benchScore,
+      fullMark: 100,
+    };
+  }) : [];
 
   const latestReport = reports[0];
 
@@ -155,10 +159,17 @@ export default function CandidateDashboard() {
                     <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.6 }} />
                     <Radar
                       name="Candidate"
-                      dataKey="A"
+                      dataKey="Candidate"
                       stroke="#3b82f6"
                       fill="#3b82f6"
                       fillOpacity={0.5}
+                    />
+                    <Radar
+                      name="Benchmark"
+                      dataKey="Benchmark"
+                      stroke="#94a3b8"
+                      fill="#94a3b8"
+                      fillOpacity={0.1}
                     />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#111', border: 'none', borderRadius: '8px', fontSize: '12px' }}
@@ -361,8 +372,7 @@ export default function CandidateDashboard() {
               </div>
               <h2 className="text-3xl font-black mb-4 leading-tight">You&apos;re getting closer to {progress?.target_company || 'your target'}!</h2>
               <p className="text-blue-100 text-sm leading-relaxed mb-6 opacity-90">
-                Your problem-solving skills have improved by 15% this week. To hit the benchmark for {progress?.target_company || 'Senior roles'}, 
-                we recommend focusing on <b>Dynamic Programming</b> and explaining your <b>Space Complexity</b> tradeoffs more clearly during the intro phase.
+                {progress?.ai_analysis}
               </p>
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2 text-xs font-bold">

@@ -86,7 +86,6 @@ class AssessmentQuestionRequest(BaseModel):
 
 class CreateAssessmentRequest(BaseModel):
     title: str
-    recruiter_id: str
     questions: List[AssessmentQuestionRequest]
 
 class TargetCompanyRequest(BaseModel):
@@ -112,3 +111,6 @@ class ProgressResponse(BaseModel):
     current_readiness: int = 0
     history: List[ProgressSnapshotModel] = []
     skill_gaps: Dict[str, int] = {}
+    ai_analysis: Optional[str] = None
+    candidate_scores: Dict[str, int] = {}
+    benchmark_scores: Dict[str, int] = {}

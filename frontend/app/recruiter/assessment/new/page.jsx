@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { API_URL } from '@/lib/api';
+import { createAssessment } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Plus, Trash2, Save, ArrowLeft, Clock, Tag, Code2, Sparkles, BrainCircuit } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -111,20 +111,10 @@ export default function NewAssessmentPage() {
           }
       });
 
-      const res = await fetch(`${API_URL}/assessment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          recruiter_id: user.id,
-          questions: formattedQuestions
-        })
+      await createAssessment({
+        title,
+        questions: formattedQuestions
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Failed to create assessment");
-      }
 
       router.push('/recruiter/dashboard');
     } catch (err) {
