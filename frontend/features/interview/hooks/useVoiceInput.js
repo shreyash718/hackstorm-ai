@@ -25,6 +25,8 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
     disabledRef.current = disabled;
   }, [disabled]);
 
+  const baseTranscriptRef = useRef('');
+
   // --- Initialize Speech Recognition ---
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -40,7 +42,8 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
         for (let i = 0; i < event.results.length; i++) {
           currentTranscript += event.results[i][0].transcript;
         }
-        setTranscript(currentTranscript);
+        const base = baseTranscriptRef.current;
+        setTranscript(base ? `${base} ${currentTranscript}` : currentTranscript);
       };
 
       recognition.onerror = (event) => {
@@ -92,7 +95,14 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
   const startRecording = useCallback(async () => {
     try {
       window.speechSynthesis.cancel();
-      setTranscript('');
+      
+      if (statusRef.current === 'ready') {
+        baseTranscriptRef.current = transcript;
+      } else {
+        baseTranscriptRef.current = '';
+        setTranscript('');
+      }
+      
       lastSpeechTimeRef.current = Date.now();
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -140,10 +150,11 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
     } catch (err) {
       console.error("Failed to start recording:", err);
     }
-  }, [stopRecording]);
+  }, [stopRecording, transcript]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
+    baseTranscriptRef.current = '';
     setStatus('idle');
     cleanupStream();
   }, [cleanupStream]);
@@ -159,7 +170,7 @@ export default function useVoiceInput({ onTranscriptReady, disabled }) {
         const currentStatus = statusRef.current;
         if (currentStatus === 'recording') {
           stopRecording();
-        } else if (currentStatus === 'idle' && !disabledRef.current) {
+        } else if ((currentStatus === 'idle' || currentStatus === 'ready') && !disabledRef.current) {
           startRecording();
         }
       }
