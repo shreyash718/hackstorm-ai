@@ -13,6 +13,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const audioChunksRef = useRef([]);
   const audioContextRef = useRef(null);
   const streamRef = useRef(null);
+  const recordingTimeRef = useRef(0);
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
@@ -67,15 +68,24 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
+        cleanupStream();
         handleTranscribe(audioBlob);
       };
 
       mediaRecorder.start();
       setStatus('recording');
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          const next = prev + 1;
+          recordingTimeRef.current = next;
+          if (next >= 45) {
+            stopRecording();
+          }
+          return next;
+        });
       }, 1000);
     } catch (err) {
       console.error("Failed to start recording:", err);
@@ -88,12 +98,14 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       mediaRecorderRef.current.stop();
       setStatus('transcribing');
     }
-    cleanupStream();
+    // cleanupStream moved to onstop to avoid race conditions
   }, [status]);
 
   const handleTranscribe = async (blob) => {
     try {
+      console.time('[STT] Total Transcription Flow');
       const data = await transcribeAudio(blob);
+      console.timeEnd('[STT] Total Transcription Flow');
       setInput(data.transcript);
       setStatus('ready');
     } catch (err) {

@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import datetime
+import time
 
 from models import ChatRequest, EvaluateRequest, Session, CreateProblemRequest
 from problems import get_all_problems, get_problem, add_problem
@@ -50,7 +51,7 @@ def run_whisper(path):
         path,
         beam_size=1,
         language="en",
-        vad_filter=True,
+        vad_filter=False,
         condition_on_previous_text=False,
     )
     transcript = " ".join(segment.text.strip() for segment in segments).strip()
@@ -68,7 +69,10 @@ async def transcribe_audio(file: UploadFile = File(...)):
             tmp_path = tmp.name
 
         # Run in thread pool to avoid blocking the event loop
+        start_time = time.perf_counter()
         transcript, language, duration = await run_in_threadpool(run_whisper, tmp_path)
+        end_time = time.perf_counter()
+        print(f"[STT] Transcribed {duration:.2f}s audio in {end_time - start_time:.2f}s")
 
         # Cleanup
         os.remove(tmp_path)
