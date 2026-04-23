@@ -119,10 +119,6 @@ export const transcribeAudio = async (audioBlob) => {
   const formData = new FormData();
   formData.append('file', audioBlob, 'audio.webm');
   
-  const response = await api.post('/transcribe', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post('/transcribe', formData);
   return response.data;
 };

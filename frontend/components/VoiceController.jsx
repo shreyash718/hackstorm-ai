@@ -7,6 +7,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const [status, setStatus] = useState('idle'); // idle, recording, transcribing, ready
   const [input, setInput] = useState('');
   const [volume, setVolume] = useState(0);
+  const [recordingTime, setRecordingTime] = useState(0);
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -14,6 +15,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const streamRef = useRef(null);
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const timerRef = useRef(null);
 
   // --- Handlers ---
 
@@ -51,8 +53,11 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       };
       updateVolume();
 
-      // Setup MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      // Setup MediaRecorder with low bitrate for faster upload
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 24000 
+      });
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
@@ -68,6 +73,10 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
       mediaRecorder.start();
       setStatus('recording');
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
     } catch (err) {
       console.error("Failed to start recording:", err);
       alert("Could not access microphone. Please ensure permissions are granted.");
@@ -106,6 +115,10 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
     analyzerRef.current = null;
     setVolume(0);
@@ -174,8 +187,15 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
                     <Square size={20} className="fill-current" />
                   </button>
                 </div>
-                <div className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase tracking-widest animate-pulse">
-                  <Activity size={14} /> Recording...
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase tracking-widest animate-pulse">
+                    <Activity size={14} /> Recording... {recordingTime}s
+                  </div>
+                  {recordingTime > 30 && (
+                    <div className="text-[10px] text-orange-500 font-bold uppercase tracking-tight">
+                      Long answer, transcribing may take longer
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -25,6 +25,7 @@ import os
 import tempfile
 from fastapi import File, UploadFile
 from faster_whisper import WhisperModel
+from starlette.concurrency import run_in_threadpool
 
 def get_supabase_admin() -> Client:
     url = os.getenv("SUPABASE_URL")
@@ -44,6 +45,17 @@ except Exception as e:
     print(f"Warning: Faster Whisper failed to load: {e}")
     whisper_model = None
 
+def run_whisper(path):
+    segments, info = whisper_model.transcribe(
+        path,
+        beam_size=1,
+        language="en",
+        vad_filter=True,
+        condition_on_previous_text=False,
+    )
+    transcript = " ".join(segment.text.strip() for segment in segments).strip()
+    return transcript, info.language, info.duration
+
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     if whisper_model is None:
@@ -55,19 +67,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
             tmp.write(await file.read())
             tmp_path = tmp.name
 
-        # Transcribe (greedy decoding for speed)
-        segments, info = whisper_model.transcribe(tmp_path, beam_size=1)
-        
-        # Combine segments
-        transcript = " ".join([segment.text for segment in segments]).strip()
+        # Run in thread pool to avoid blocking the event loop
+        transcript, language, duration = await run_in_threadpool(run_whisper, tmp_path)
 
         # Cleanup
         os.remove(tmp_path)
 
         return {
             "transcript": transcript,
-            "language": info.language,
-            "duration": info.duration
+            "language": language,
+            "duration": duration
         }
     except Exception as e:
         print(f"Transcription error: {e}")
