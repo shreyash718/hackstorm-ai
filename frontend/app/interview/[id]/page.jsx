@@ -213,5 +213,3 @@ export default function InterviewScreen() {
     </div>
   );
 }
-  );
-}
