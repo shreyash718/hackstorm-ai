@@ -58,9 +58,15 @@ export default function InterviewScreen() {
   const [language, setLanguage] = useState('python');
   const [code, setCode] = useState(STARTER_CODE[problemId]?.python || '# Write your solution here\n');
 
+  const [codesPerLanguage, setCodesPerLanguage] = useState({});
+
   function handleLanguageChange(newLang) {
+    setCodesPerLanguage(prev => ({
+      ...prev,
+      [language]: code
+    }));
     setLanguage(newLang);
-    setCode(STARTER_CODE[problemId]?.[newLang] || '// Write your solution here\n');
+    setCode(codesPerLanguage[newLang] || STARTER_CODE[problemId]?.[newLang] || '// Write your solution here\n');
   }
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +79,14 @@ export default function InterviewScreen() {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [currentPhase, setCurrentPhase] = useState('PLANNING');
   const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Phase Timer Logic
   useEffect(() => {
@@ -125,6 +139,16 @@ export default function InterviewScreen() {
     fetchProblem(problemId)
       .then((data) => {
         setProblem(data);
+        
+        // Initialize codes for languages
+        const initialCodes = {};
+        const langs = ['python', 'cpp', 'java'];
+        langs.forEach(l => {
+          initialCodes[l] = STARTER_CODE[problemId]?.[l] || '// Write your solution here\n';
+        });
+        setCodesPerLanguage(initialCodes);
+        setCode(initialCodes['python']);
+
         const greeting = `Hey! I'm Arjun. Let's work through "${data.title}" together. Take a moment to read the problem, and whenever you're ready, walk me through your initial thoughts.`;
         setMessages([{ role: 'assistant', content: greeting }]);
         setLoading(false);
@@ -356,7 +380,7 @@ export default function InterviewScreen() {
 
       {/* Main Workspace */}
       <div className="flex-1 overflow-hidden">
-        <Group direction="horizontal" className="h-full">
+        <Group direction={isMobile ? "vertical" : "horizontal"} className="h-full">
           
           {/* Problem Description Panel */}
           <Panel defaultSize={25} minSize={15}>

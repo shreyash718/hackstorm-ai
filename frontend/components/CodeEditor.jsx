@@ -16,7 +16,7 @@ export default function CodeEditor({ code, onChange, language, onLanguageChange 
             <div className="w-2.5 h-2.5 rounded-full bg-green-500 opacity-80" />
           </div>
           <span className="text-gray-500 dark:text-slate-500 text-xs ml-2 font-mono">
-            {language === 'python' ? 'solution.py' : language === 'cpp' ? 'solution.cpp' : 'Solution.java'}
+            {`solution.${language === 'python' ? 'py' : language === 'cpp' ? 'cpp' : language === 'java' ? 'java' : language === 'js' ? 'js' : language === 'go' ? 'go' : 'rs'}`}
           </span>
         </div>
         <select
@@ -27,6 +27,9 @@ export default function CodeEditor({ code, onChange, language, onLanguageChange 
           <option value="python">Python</option>
           <option value="cpp">C++</option>
           <option value="java">Java</option>
+          <option value="js">JavaScript</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
         </select>
       </div>
       <div className="flex-1 overflow-hidden">

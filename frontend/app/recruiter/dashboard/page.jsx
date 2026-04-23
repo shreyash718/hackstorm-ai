@@ -220,6 +220,7 @@ export default function RecruiterDashboard() {
                             </motion.button>
                             <motion.button 
                                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} 
+                                onClick={() => router.push(`/recruiter/assessment/${assessment.id}/results`)}
                                 className="flex-1 md:flex-none px-6 py-3 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-white rounded-xl font-bold text-xs transition-colors shadow-sm dark:shadow-none"
                             >
                                 VIEW RESULTS

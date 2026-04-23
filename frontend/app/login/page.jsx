@@ -95,8 +95,17 @@ export default function CandidateLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [redirectInfo, setRedirectInfo] = useState(null);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirect = searchParams.get('redirect');
+    const id = searchParams.get('id');
+    if (redirect && id) {
+      setRedirectInfo({ redirect, id });
+    }
+  }, []);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -112,7 +121,12 @@ export default function CandidateLoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push('/');
+        
+        if (redirectInfo && redirectInfo.redirect === 'problem') {
+            router.push(`/interview/${redirectInfo.id}`);
+        } else {
+            router.push('/');
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -122,8 +136,11 @@ export default function CandidateLoginPage() {
   };
 
   const handleGoogleAuth = async () => {
-    // Use the centralized auth initiator page
-    window.location.href = '/auth/google?next=/';
+    let nextPath = '/';
+    if (redirectInfo && redirectInfo.redirect === 'problem') {
+        nextPath = `/interview/${redirectInfo.id}`;
+    }
+    window.location.href = `/auth/google?next=${nextPath}`;
   };
 
   return (

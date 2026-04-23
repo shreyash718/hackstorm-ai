@@ -95,7 +95,7 @@ export default function NewAssessmentPage() {
           try {
               parsedExamples = JSON.parse(q.examples);
           } catch(e) {
-              parsedExamples = [{"input": "Error parsing JSON", "output": "Fix your syntax"}];
+              throw new Error(`Invalid JSON in Question ${index + 1} examples: ${e.message}`);
           }
           return {
             title: q.title,

@@ -52,7 +52,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       if (currentTranscript.trim().length > 2) {
         handleSubmit(currentTranscript);
       }
-    }, 1500); 
+    }, 3500); // Increased to 3.5s for natural pauses
   }, [handleSubmit]);
 
   const stopListening = useCallback(() => {

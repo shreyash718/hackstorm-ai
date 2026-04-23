@@ -64,7 +64,33 @@ export default function AssessmentInterviewScreen() {
   const [voiceMode, setVoiceMode] = useState(true);
 
   const [currentPhase, setCurrentPhase] = useState('PLANNING');
-  const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [codesPerLanguage, setCodesPerLanguage] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const getPhaseDuration = useCallback((phaseId, totalMins) => {
+    const totalSecs = totalMins * 60;
+    const planningSecs = Math.max(60, Math.floor(totalSecs * 0.15)); // 15% for planning
+    const reviewSecs = Math.max(60, Math.floor(totalSecs * 0.15));   // 15% for review
+    const codingSecs = totalSecs - planningSecs - reviewSecs;
+    
+    if (phaseId === 'PLANNING') return planningSecs;
+    if (phaseId === 'REVIEW') return reviewSecs;
+    return codingSecs;
+  }, []);
 
   useEffect(() => {
     // Load voices
@@ -96,21 +122,29 @@ export default function AssessmentInterviewScreen() {
     // Set initial language from allowed languages
     const initialLang = q.allowed_languages.length > 0 ? q.allowed_languages[0] : 'python';
     setLanguage(initialLang);
-    setCode(STARTER_CODE[initialLang] || '// Write your solution here\n');
+    
+    // Initialize codes for all allowed languages
+    const initialCodes = {};
+    q.allowed_languages.forEach(l => {
+        initialCodes[l] = STARTER_CODE[l] || '// Write your solution here\n';
+    });
+    setCodesPerLanguage(initialCodes);
+    setCode(initialCodes[initialLang]);
 
-    // Set timer
-    setTimeLeft(q.time_limit_mins * 60);
+    // Reset phase and timer
+    setCurrentPhase('PLANNING');
+    setTimeLeft(getPhaseDuration('PLANNING', q.time_limit_mins));
 
     // Initial greeting if AI enabled
     if (q.ai_enabled) {
-        const greeting = `Hello ${sessionInfo?.candidate_name}. Let's work on "${q.title}". You have ${q.time_limit_mins} minutes. Walk me through your thoughts.`;
+        const greeting = `Hello ${sessionInfo?.candidate_name}. Let's work on "${q.title}". You have ${q.time_limit_mins} minutes total. We'll start with a short planning phase. Walk me through your thoughts.`;
         setMessages([{ role: 'assistant', content: greeting }]);
     } else {
         setMessages([]);
     }
 
     setLoading(false);
-  }, [assessment, currentQIndex]);
+  }, [assessment, currentQIndex, getPhaseDuration, sessionInfo?.candidate_name]);
 
   // Phase Timer Logic
   useEffect(() => {
@@ -122,10 +156,10 @@ export default function AssessmentInterviewScreen() {
           const nextPhaseId = PHASES[currentPhase].next;
           if (nextPhaseId) {
             setCurrentPhase(nextPhaseId);
-            const nextDuration = PHASES[nextPhaseId].duration;
+            const nextDuration = getPhaseDuration(nextPhaseId, question.time_limit_mins);
             
             // Inform AI about phase transition
-            const transitionMsg = `[SYSTEM: Phase changed to ${PHASES[nextPhaseId].name}. Please guide the candidate accordingly.]`;
+            const transitionMsg = `[SYSTEM: Phase changed to ${PHASES[nextPhaseId].name}. Total duration for this phase: ${Math.floor(nextDuration/60)}m. Please guide the candidate accordingly.]`;
             handleSendMessage(transitionMsg, true); // Hidden system message
             
             return nextDuration;
@@ -157,8 +191,13 @@ export default function AssessmentInterviewScreen() {
   }, [messages, voiceMode, question]);
 
   function handleLanguageChange(newLang) {
+    // Save current code before switching
+    setCodesPerLanguage(prev => ({
+        ...prev,
+        [language]: code
+    }));
     setLanguage(newLang);
-    setCode(STARTER_CODE[newLang] || '// Write your solution here\n');
+    setCode(codesPerLanguage[newLang] || STARTER_CODE[newLang] || '// Write your solution here\n');
   }
 
   async function handleSendMessage(text, isSystem = false) {
@@ -369,7 +408,7 @@ export default function AssessmentInterviewScreen() {
 
       {/* Main Workspace */}
       <div className="flex-1 overflow-hidden">
-        <Group direction="horizontal" className="h-full">
+        <Group direction={isMobile ? "vertical" : "horizontal"} className="h-full">
           
           {/* Problem Description Panel */}
           <Panel defaultSize={question.ai_enabled ? 25 : 40} minSize={15}>

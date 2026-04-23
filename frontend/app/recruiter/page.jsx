@@ -181,7 +181,7 @@ export default function RecruiterLandingPage() {
 
               <div className="mt-8 p-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl transition-colors">
                 <div className="text-[10px] text-gray-500 font-bold mb-2 uppercase tracking-widest">AI Notes</div>
-                <p className="text-sm text-gray-700 dark:text-gray-300 italic transition-colors">"Candidate clearly articulated their decision to use a Hash Map over a Trie. Handled edge cases seamlessly when prompted."</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 italic transition-colors">&quot;Candidate clearly articulated their decision to use a Hash Map over a Trie. Handled edge cases seamlessly when prompted.&quot;</p>
               </div>
 
             </motion.div>

@@ -109,7 +109,7 @@ export default function Home() {
 
   const handleStart = async (id) => {
     if (!user) {
-      router.push('/login');
+      router.push(`/login?redirect=problem&id=${id}`);
       return;
     }
 
@@ -218,7 +218,7 @@ export default function Home() {
                 onClick={() => router.push('/login')} 
                 className="group relative flex items-center justify-center gap-2 bg-primary text-background font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-colors"
               >
-                I'm a Student <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowRight size={20} /></motion.div>
+                I&apos;m a Student <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowRight size={20} /></motion.div>
               </motion.button>
               <motion.button 
                 whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(139,92,246,0.4)" }}
@@ -226,7 +226,7 @@ export default function Home() {
                 onClick={() => router.push('/recruiter')}
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-colors"
               >
-                I'm a Recruiter <ArrowRight size={20} />
+                I&apos;m a Recruiter <ArrowRight size={20} />
               </motion.button>
             </motion.div>
             <motion.button 
@@ -252,7 +252,7 @@ export default function Home() {
             >
               <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">Grinding LeetCode is <span className="text-red-500">Broken.</span></h2>
               <p className="text-secondary text-lg max-w-3xl mx-auto">
-                You can memorize 500 algorithms, but when a real Senior Engineer asks you <i>"Why did you choose a Hash Map over a Trie?"</i>, you freeze. Real interviews aren't just about passing test cases—they are about <b>communication</b>, <b>trade-offs</b>, and <b>collaboration</b>.
+                You can memorize 500 algorithms, but when a real Senior Engineer asks you <i>&quot;Why did you choose a Hash Map over a Trie?&quot;</i>, you freeze. Real interviews aren&apos;t just about passing test cases&mdash;they are about <b>communication</b>, <b>trade-offs</b>, and <b>collaboration</b>.
               </p>
             </motion.div>
 
@@ -319,7 +319,7 @@ export default function Home() {
                         </div>
                         <div className="p-4 font-mono text-xs text-blue-300">
                           <span className="text-pink-400">def</span> <span className="text-green-300">solve</span>(nums):<br/>
-                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-slate-400"># Interviewer: "What is the time complexity of this approach?"</span><br/>
+                          &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-slate-400"># Interviewer: &quot;What is the time complexity of this approach?&quot;</span><br/>
                           &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-pink-400">return</span> nums
                         </div>
                       </div>
@@ -348,7 +348,7 @@ export default function Home() {
                       <h3 className="text-2xl font-bold mb-4">Actionable Analytics</h3>
                       <p className="text-secondary leading-relaxed">
                         When the session ends, the AI evaluates your entire transcript and code submission. 
-                        You receive a brutal but fair breakdown of your <b>Communication</b>, <b>Code Quality</b>, and <b>Optimization</b> skills, along with a final "Hire" or "No Hire" recommendation.
+                        You receive a brutal but fair breakdown of your <b>Communication</b>, <b>Code Quality</b>, and <b>Optimization</b> skills, along with a final &quot;Hire&quot; or &quot;No Hire&quot; recommendation.
                       </p>
                     </div>
                     <div className="flex-1 w-full bg-background border border-muted rounded-xl p-6 text-left">
