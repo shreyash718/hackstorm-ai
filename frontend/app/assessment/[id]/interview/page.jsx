@@ -140,11 +140,7 @@ export default function AssessmentInterviewScreen() {
     return () => clearInterval(timer);
   }, [currentPhase, loading, evaluating, report, question]);
 
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+
 
   function handleTimeUp() {
     alert("Time is up for this question!");
@@ -305,11 +301,7 @@ export default function AssessmentInterviewScreen() {
     }
   };
 
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+
 
   // If entire assessment is done
   if (report) {
@@ -348,7 +340,6 @@ export default function AssessmentInterviewScreen() {
                 {formatTime(timeLeft)}
               </span>
             </div>
-          </div>
         </div>
 
           {question.ai_enabled && (
