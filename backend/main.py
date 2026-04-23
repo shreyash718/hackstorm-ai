@@ -22,6 +22,9 @@ from database import (
 )
 from supabase import create_client, Client
 import os
+import tempfile
+from fastapi import File, UploadFile
+from faster_whisper import WhisperModel
 
 def get_supabase_admin() -> Client:
     url = os.getenv("SUPABASE_URL")
@@ -33,6 +36,44 @@ def get_supabase_admin() -> Client:
 load_dotenv()
 
 app = FastAPI(title="HackStorm Interview AI")
+
+# Initialize Whisper model globally (using base.en for balanced speed/accuracy)
+try:
+    whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+except Exception as e:
+    print(f"Warning: Faster Whisper failed to load: {e}")
+    whisper_model = None
+
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    if whisper_model is None:
+        raise HTTPException(status_code=500, detail="Transcription service not available")
+    
+    try:
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        # Transcribe
+        segments, info = whisper_model.transcribe(tmp_path, beam_size=5)
+        
+        # Combine segments
+        transcript = " ".join([segment.text for segment in segments]).strip()
+
+        # Cleanup
+        os.remove(tmp_path)
+
+        return {
+            "transcript": transcript,
+            "language": info.language,
+            "duration": info.duration
+        }
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise HTTPException(status_code=500, detail=str(e))
 
 app.add_middleware(
     CORSMiddleware,

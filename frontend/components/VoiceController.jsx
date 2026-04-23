@@ -1,329 +1,224 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Square, Send, Activity } from 'lucide-react';
+import { Mic, MicOff, Square, Send, Activity, RotateCcw, Loader2 } from 'lucide-react';
+import { transcribeAudio } from '@/lib/api';
 
 export default function VoiceController({ onSendMessage, isSpeaking, loading, voiceMode }) {
-  const [listening, setListening] = useState(false);
+  const [status, setStatus] = useState('idle'); // idle, recording, transcribing, ready
   const [input, setInput] = useState('');
   const [volume, setVolume] = useState(0);
-  const [autoListen, setAutoListen] = useState(true);
-
-  const recogRef = useRef(null);
-  const silenceTimerRef = useRef(null);
+  
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const audioContextRef = useRef(null);
   const streamRef = useRef(null);
-  const inputRef = useRef('');
-  const shouldRestartRef = useRef(false);
-
-  useEffect(() => {
-    inputRef.current = input;
-  }, [input]);
+  const analyzerRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
   // --- Handlers ---
 
-  const handleSubmit = useCallback((textOverride) => {
-    const text = textOverride !== undefined ? textOverride : inputRef.current;
-    if (!text.trim() || loading) return;
-
-    shouldRestartRef.current = false;
-    if (recogRef.current) {
-      try {
-        recogRef.current.onend = null;
-        recogRef.current.abort(); 
-      } catch (e) {}
-      recogRef.current = null;
-    }
-    setListening(false);
-
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-
-    onSendMessage(text);
-    setInput('');
-    inputRef.current = '';
-  }, [loading, onSendMessage]);
-
-  const resetSilenceTimer = useCallback((currentTranscript) => {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    
-    silenceTimerRef.current = setTimeout(() => {
-      if (currentTranscript.trim().length > 2) {
-        handleSubmit(currentTranscript);
-      }
-    }, 3500); // Increased to 3.5s for natural pauses
-  }, [handleSubmit]);
-
-  const stopListening = useCallback(() => {
-    shouldRestartRef.current = false;
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    if (recogRef.current) {
-      try {
-        recogRef.current.onend = null;
-        recogRef.current.stop(); 
-      } catch (e) {}
-      recogRef.current = null;
-    }
-    setListening(false);
-  }, []);
-
-  const startListening = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const SGL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-    
-    if (!SR) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome.");
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-
-    if (recogRef.current) {
-      try { recogRef.current.abort(); } catch (e) {}
-    }
-
-    const r = new SR();
-    
-    // Add technical grammar hints if supported
-    if (SGL) {
-      const grammar = '#JSGF V1.0; grammar tech; public <keyword> = python | java | code | logic | complexity | optimized | space | time | big o | array | string | recursion | dynamic | loop ;'
-      const speechRecognitionList = new SGL();
-      speechRecognitionList.addFromString(grammar, 1);
-      r.grammars = speechRecognitionList;
-    }
-
-    r.lang = 'en-US';
-    r.continuous = true;
-    r.interimResults = true;
-    r.maxAlternatives = 1;
-
-    r.onstart = () => {
-      setListening(true);
-      shouldRestartRef.current = true;
-    };
-
-    r.onresult = (e) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = e.resultIndex; i < e.results.length; ++i) {
-        if (e.results[i].isFinal) {
-          finalTranscript += e.results[i][0].transcript;
-        } else {
-          interimTranscript += e.results[i][0].transcript;
-        }
-      }
-
-      const fullTranscript = (finalTranscript + interimTranscript).trim();
-      if (fullTranscript) {
-        setInput(fullTranscript);
-        resetSilenceTimer(fullTranscript);
-      }
-    };
-
-    r.onerror = (e) => {
-      console.warn('[Voice] Error:', e.error);
-      if (e.error === 'network') {
-        alert("Network error with speech recognition. Please check your connection.");
-      }
-      if (e.error === 'not-allowed') {
-        alert("Microphone access denied. Please enable it in browser settings.");
-      }
-    };
-
-    r.onend = () => {
-      setListening(false);
-      // Auto-restart if we were supposed to be listening and not in a busy state
-      if (shouldRestartRef.current && !loading && !isSpeaking && voiceMode && autoListen) {
-        setTimeout(() => {
-          try { 
-            if (shouldRestartRef.current) startListening(); 
-          } catch (e) { console.error("Auto-restart failed", e); }
-        }, 100);
-      }
-    };
-
-    recogRef.current = r;
+  const startRecording = useCallback(async () => {
     try {
-      r.start();
-    } catch (e) {
-      setListening(false);
-    }
-  }, [resetSilenceTimer, loading, isSpeaking]);
+      window.speechSynthesis.cancel();
+      audioChunksRef.current = [];
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      streamRef.current = stream;
 
-  // --- Effects (defined after handlers to avoid initialization issues) ---
+      // Setup Visualizer
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyzer = audioContext.createAnalyser();
+      analyzer.fftSize = 256;
+      source.connect(analyzer);
+      analyzerRef.current = analyzer;
 
-  useEffect(() => {
-    if (voiceMode && autoListen && !isSpeaking && !loading && !listening && !input.trim()) {
-      const timer = setTimeout(() => {
-        startListening();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isSpeaking, loading, voiceMode, autoListen, listening, input, startListening]);
+      const dataArray = new Uint8Array(analyzer.frequencyBinCount);
+      const updateVolume = () => {
+        if (!analyzerRef.current) return;
+        analyzerRef.current.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        setVolume(sum / dataArray.length);
+        animationFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+      updateVolume();
 
-  useEffect(() => {
-    if (listening && !isSpeaking && !loading) {
-      const startVisualizer = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            } 
-          });
-          streamRef.current = stream;
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          audioContextRef.current = audioContext;
-          const source = audioContext.createMediaStreamSource(stream);
-          const analyser = audioContext.createAnalyser();
-          analyser.fftSize = 256;
-          source.connect(analyser);
-          
-          const dataArray = new Uint8Array(analyser.frequencyBinCount);
-          const updateVolume = () => {
-            if (!analyser) return;
-            analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            const avg = sum / dataArray.length;
-            setVolume(avg);
-            if (listening) requestAnimationFrame(updateVolume);
-          };
-          updateVolume();
-        } catch (e) {
-          console.error("Visualizer failed:", e);
+      // Setup MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
-      startVisualizer();
-    } else {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-      setVolume(0);
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        handleTranscribe(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setStatus('recording');
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      alert("Could not access microphone. Please ensure permissions are granted.");
     }
-  }, [listening, isSpeaking, loading]);
-
-  useEffect(() => {
-    if (loading && listening) {
-      stopListening();
-    }
-  }, [loading, listening, stopListening]);
-
-  useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        if (inputRef.current.trim() && !loading && !isSpeaking) {
-          e.preventDefault();
-          handleSubmit();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [loading, isSpeaking, handleSubmit]);
-
-  useEffect(() => {
-    return () => {
-      shouldRestartRef.current = false;
-      if (recogRef.current) {
-        try { recogRef.current.abort(); } catch (e) {}
-        recogRef.current = null;
-      }
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (audioContextRef.current) audioContextRef.current.close();
-    };
   }, []);
 
-  const micDisabled = loading || isSpeaking;
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && status === 'recording') {
+      mediaRecorderRef.current.stop();
+      setStatus('transcribing');
+    }
+    cleanupStream();
+  }, [status]);
+
+  const handleTranscribe = async (blob) => {
+    try {
+      const data = await transcribeAudio(blob);
+      setInput(data.transcript);
+      setStatus('ready');
+    } catch (err) {
+      console.error("Transcription failed:", err);
+      setStatus('idle');
+      alert("Transcription failed. Please try again or type your response.");
+    }
+  };
+
+  const cleanupStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    analyzerRef.current = null;
+    setVolume(0);
+  };
+
+  const handleSend = useCallback(() => {
+    if (!input.trim() || loading) return;
+    onSendMessage(input);
+    setInput('');
+    setStatus('idle');
+  }, [input, loading, onSendMessage]);
+
+  const handleReset = () => {
+    setInput('');
+    setStatus('idle');
+    cleanupStream();
+  };
+
+  // --- Effects ---
+
+  useEffect(() => {
+    return () => cleanupStream();
+  }, []);
+
+  // If AI starts speaking or we start loading, stop recording if active
+  useEffect(() => {
+    if ((isSpeaking || loading) && status === 'recording') {
+      stopRecording();
+    }
+  }, [isSpeaking, loading, status, stopRecording]);
+
+  const isDisabled = loading || isSpeaking;
 
   return (
     <div className="flex flex-col border-t border-gray-200 dark:border-[#1e293b] bg-gray-50 dark:bg-[#0a0e1a] p-4 flex-shrink-0 font-mono rounded-b-xl transition-colors">
       {voiceMode ? (
-        <div className="flex flex-col items-center gap-3">
-          {/* Main Mic Button */}
-          <div className="relative">
-            {listening && (
-                <div 
-                  className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"
-                  style={{ transform: `scale(${1 + volume / 100})` }}
-                />
-            )}
-            <button
-                onClick={() => {
-                if (listening) {
-                    if (inputRef.current.trim()) {
-                    handleSubmit();
-                    } else {
-                    stopListening();
-                    }
-                } else {
-                    startListening();
-                }
-                }}
-                disabled={micDisabled}
-                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg relative z-10 ${
-                listening
-                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
-                    : micDisabled
+        <div className="flex flex-col items-center gap-4">
+          
+          {/* Main Action Area */}
+          <div className="relative flex items-center justify-center w-full min-h-[80px]">
+            {status === 'idle' && (
+              <button
+                onClick={startRecording}
+                disabled={isDisabled}
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                  isDisabled
                     ? 'bg-gray-300 dark:bg-slate-800 text-gray-400 dark:text-slate-600 opacity-50 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30 text-white'
                 }`}
-            >
-                {listening ? (
-                <Square size={20} className="text-white fill-current" />
-                ) : (
-                <Mic size={22} className="text-white" />
-                )}
-            </button>
+              >
+                <Mic size={24} />
+              </button>
+            )}
+
+            {status === 'recording' && (
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  <div 
+                    className="absolute inset-0 rounded-full bg-red-500/20 animate-ping"
+                    style={{ transform: `scale(${1 + volume / 50})` }}
+                  />
+                  <button
+                    onClick={stopRecording}
+                    className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-lg shadow-red-500/30 relative z-10"
+                  >
+                    <Square size={20} className="fill-current" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase tracking-widest animate-pulse">
+                  <Activity size={14} /> Recording...
+                </div>
+              </div>
+            )}
+
+            {status === 'transcribing' && (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={32} className="text-blue-600 animate-spin" />
+                <span className="text-xs font-bold text-blue-600 tracking-widest uppercase">AI is Transcribing...</span>
+              </div>
+            )}
+
+            {status === 'ready' && (
+              <div className="w-full flex flex-col gap-3">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Review your transcript..."
+                  className="w-full bg-white dark:bg-[#0f172a] border border-blue-500/30 rounded-xl text-gray-800 dark:text-slate-200 p-4 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none font-mono transition-all shadow-inner italic"
+                  rows={3}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 flex items-center justify-center gap-2 bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-bold py-2.5 rounded-xl transition-all hover:bg-gray-300 dark:hover:bg-slate-700 text-xs tracking-widest"
+                  >
+                    <RotateCcw size={14} /> RE-RECORD
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    className="flex-[2] flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 text-xs tracking-widest"
+                  >
+                    <Send size={14} /> SEND RESPONSE
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Status text */}
-          <div className="flex items-center gap-2">
-            {listening && <Activity size={12} className="text-red-500 animate-pulse" />}
-            <span className={`text-[10px] tracking-widest font-bold uppercase ${
-                listening ? 'text-red-500 dark:text-red-400' : micDisabled ? 'text-gray-400 dark:text-slate-600' : 'text-gray-500 dark:text-slate-500'
-            }`}>
-                {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : listening ? 'Listening...' : 'Tap to speak'}
+          {/* Helper Status */}
+          {status === 'idle' && (
+            <span className="text-[10px] tracking-widest font-bold uppercase text-gray-400 dark:text-slate-600">
+              {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : 'Tap Mic to Start Answer'}
             </span>
-          </div>
-
-          {/* Auto-Listen Toggle */}
-          <button 
-            onClick={() => setAutoListen(!autoListen)}
-            className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-bold tracking-tighter transition-all ${
-              autoListen 
-                ? 'bg-blue-600/10 border-blue-500/50 text-blue-600' 
-                : 'bg-gray-100 border-gray-300 text-gray-500'
-            }`}
-          >
-            {autoListen ? '🤖 AUTO-LISTEN ON' : '🖐️ MANUAL TAP MODE'}
-          </button>
-
-          {/* Show transcript preview */}
-          {input && (
-            <div className="w-full mt-1 p-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-gray-700 dark:text-slate-300 text-sm italic transition-colors">
-              &ldquo;{input}&rdquo;
-            </div>
-          )}
-
-          {input.trim() && !listening && !loading && (
-            <button
-              onClick={() => handleSubmit()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
-            >
-              SEND RESPONSE <Send size={14} />
-            </button>
           )}
         </div>
       ) : (
@@ -334,7 +229,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleSubmit();
+                handleSend();
               }
             }}
             placeholder="Type your response..."
@@ -343,7 +238,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
             disabled={loading || isSpeaking}
           />
           <button
-            onClick={() => handleSubmit()}
+            onClick={handleSend}
             disabled={loading || !input.trim() || isSpeaking}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-wider py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
           >

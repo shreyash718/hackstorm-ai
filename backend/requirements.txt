@@ -9,3 +9,5 @@ supabase
 ollama
 openai
 resend
+faster-whisper
+python-multipart
