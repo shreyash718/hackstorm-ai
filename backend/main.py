@@ -31,6 +31,7 @@ import tempfile
 from fastapi import File, UploadFile
 # from faster_whisper import WhisperModel (moved to lazy loader)
 from starlette.concurrency import run_in_threadpool
+import traceback
 
 def get_supabase_admin() -> Client:
     url = os.getenv("SUPABASE_URL")
@@ -192,32 +193,44 @@ def verify_admin_access(request: Request):
 # Note: Last added is outermost for request, but outermost for response is what we want for CORS.
 # In Starlette, middlewares wrap the app. To make CORS outermost for response, add it LAST.
 
-# Manual CORS Fallback Middleware
+# --- Unified CORS and Error Handling Middleware ---
 @app.middleware("http")
-async def cors_fallback_middleware(request: Request, call_next):
+async def unified_middleware(request: Request, call_next):
+    # 1. Handle OPTIONS (Preflight)
     if request.method == "OPTIONS":
         response = JSONResponse(content="OK")
-    else:
+        origin = request.headers.get("origin")
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+    # 2. Handle Actual Request with Error Catching
+    try:
         response = await call_next(request)
+    except Exception as e:
+        print(f"CRITICAL ERROR in request {request.url.path}: {e}")
+        traceback.print_exc()
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error", "error": str(e)}
+        )
     
+    # 3. Inject CORS Headers into ALL responses (including errors)
     origin = request.headers.get("origin")
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
+        # Important for some clients to see headers
+        response.headers["Access-Control-Expose-Headers"] = "*"
     
     return response
 
-# Standard CORSMiddleware as well
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
+# Standard CORSMiddleware is REMOVED to avoid conflict with unified_middleware
 
 @app.on_event("startup")
 async def startup_event():
