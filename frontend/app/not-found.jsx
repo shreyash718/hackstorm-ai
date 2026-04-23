@@ -78,7 +78,7 @@ export default function NotFound() {
             <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
             <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
             <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-            <span className="ml-2 text-[10px] font-mono text-gray-500 tracking-widest uppercase">hackstorm terminal</span>
+            <span className="ml-2 text-[10px] font-mono text-gray-500 tracking-widest uppercase">interview blitz terminal</span>
           </div>
           <div className="font-mono text-sm space-y-2">
             <p className="text-gray-500 dark:text-gray-400">

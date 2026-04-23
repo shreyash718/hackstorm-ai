@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'HackStorm Interview AI',
+  title: 'Interview Blitz',
   description: 'AI-powered technical interview simulator',
 }
 

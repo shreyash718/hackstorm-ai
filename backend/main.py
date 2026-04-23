@@ -43,7 +43,7 @@ def get_supabase_admin() -> Client:
 
 load_dotenv()
 
-app = FastAPI(title="HackStorm Interview AI")
+app = FastAPI(title="Interview Blitz")
 
 security = HTTPBearer()
 
@@ -248,7 +248,7 @@ async def startup_event():
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "HackStorm Interview AI"}
+    return {"status": "ok", "service": "Interview Blitz"}
 
 @app.get("/ping")
 def ping():

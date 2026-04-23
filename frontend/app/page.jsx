@@ -162,7 +162,7 @@ export default function Home() {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Code2 size={18} className="text-white" />
             </div>
-            HackStorm <span className="text-blue-500">AI</span>
+            Interview Blitz <span className="text-blue-500">AI</span>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -446,7 +446,7 @@ export default function Home() {
               <Code2 size={16} className="text-white" />
             </div>
             <div className="flex items-center gap-2">
-                <span className="font-bold tracking-widest text-sm text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 transition-colors">HACKSTORM AI</span>
+                <span className="font-bold tracking-widest text-sm text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 transition-colors">INTERVIEW BLITZ</span>
             </div>
           </div>
           

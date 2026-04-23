@@ -84,7 +84,7 @@ export default function CandidateDashboard() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Brain size={16} className="text-white" />
               </div>
-              HACKSTORM
+              INTERVIEW BLITZ
             </div>
             <div className="hidden md:flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
               <ChevronRight size={14} /> Dashboard

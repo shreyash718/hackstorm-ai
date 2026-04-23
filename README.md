@@ -1,8 +1,8 @@
-# HackStorm AI
+# Interview Blitz AI
 
 ### AI-Powered B2B Technical Assessment Platform
 
-**HackStorm AI** is a state-of-the-art platform designed to revolutionize technical hiring. By leveraging advanced LLM capabilities (Gemini, Groq, or local Ollama), it provides a human-like, interactive interview experience that goes beyond simple code execution.
+**Interview Blitz AI** is a state-of-the-art platform designed to revolutionize technical hiring. By leveraging advanced LLM capabilities (Gemini, Groq, or local Ollama), it provides a human-like, interactive interview experience that goes beyond simple code execution.
 
 ---
 

@@ -37,7 +37,7 @@ export default function RecruiterLandingPage() {
               <BrainCircuit size={20} className="text-white" />
             </div>
             <div>
-              <div className="font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 transition-colors">HACKSTORM AI</div>
+              <div className="font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 transition-colors">INTERVIEW BLITZ</div>
               <div className="text-[10px] font-bold text-violet-600 dark:text-violet-400 tracking-widest uppercase transition-colors">For Enterprise</div>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function RecruiterLandingPage() {
             variants={fadeUpVariant} className="text-center mb-20"
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-100 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-400 text-xs font-bold tracking-widest uppercase mb-6 transition-colors shadow-sm dark:shadow-none">
-              <CheckCircle2 size={14} /> The HackStorm Solution
+              <CheckCircle2 size={14} /> The Interview Blitz Solution
             </div>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white transition-colors">Standardized. Scalable. Precise.</h2>
           </motion.div>
