@@ -11,33 +11,42 @@ def generate_report(problem: Dict[str, Any], chat_history: List[Dict[str, str]],
 
     system_prompt = "You are a senior technical interviewer. Evaluate the candidate's performance based on the provided conversation and code. Return ONLY valid JSON."
     
-    user_message = f"""You evaluated a candidate solving: {problem['title']}
+    user_message = f"""You are an extremely rigorous technical bar-raiser. Evaluate the candidate's performance based on the conversation and final code.
 
-Full conversation:
+STRICT GRADING CRITERIA:
+1. If the conversation is empty, minimal (less than 5 meaningful turns), or irrelevant, you MUST give an overall_score below 20 and a 'No Hire' recommendation.
+2. If the final code is empty, incomplete, or contains syntax errors, penalize the 'code_quality' and 'problem_solving' heavily.
+3. Do NOT give 'free' points. An average candidate should score around 50. A score above 80 is reserved for exceptional performance.
+4. If the candidate was silent or didn't solve the core problem, they MUST receive a 'No Hire'.
+
+PROBLEM TO SOLVE: {problem['title']}
+{problem['description']}
+
+CONVERSATION HISTORY:
 {history_text}
 
-Final code submitted:
+FINAL CODE SUBMITTED:
 ```
-{final_code}
+{final_code if final_code.strip() else "[NO CODE SUBMITTED]"}
 ```
 
-Give a structured evaluation as JSON with these exact keys:
+Return a structured evaluation as JSON with these exact keys:
 {{
-  "overall_score": <number 1-100>,
+  "overall_score": <number 0-100>,
   "hire_recommendation": <"Strong Hire" | "Hire" | "No Hire">,
-  "problem_solving": <number 1-100>,
-  "code_quality": <number 1-100>,
-  "communication": <number 1-100>,
-  "optimization": <number 1-100>,
-  "debugging": <number 1-100>,
+  "problem_solving": <number 0-100>,
+  "code_quality": <number 0-100>,
+  "communication": <number 0-100>,
+  "optimization": <number 0-100>,
+  "debugging": <number 0-100>,
   "time_complexity": "<e.g. O(n)>",
   "space_complexity": "<e.g. O(n)>",
-  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "improvements": ["<area 1>", "<area 2>"],
-  "summary": "<2-3 sentence overall summary>"
+  "strengths": ["<detailed strength 1>", "<detailed strength 2>"],
+  "improvements": ["<critical area 1>", "<critical area 2>"],
+  "summary": "<3-4 sentence professional technical assessment>"
 }}
 
-Return ONLY valid JSON, without formatting blocks or markdown.
+IMPORTANT: Return ONLY the JSON object. Do not include any explanations before or after.
 """
 
     try:

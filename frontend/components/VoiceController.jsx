@@ -14,7 +14,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const streamRef = useRef(null);
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
-  const timerRef = useRef(null);
+  const lastSpeechTimeRef = useRef(Date.now());
 
   // --- Initialize Speech Recognition ---
   useEffect(() => {
@@ -26,6 +26,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
+        lastSpeechTimeRef.current = Date.now();
         let transcript = '';
         for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
@@ -49,6 +50,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
     try {
       window.speechSynthesis.cancel();
       setInput('');
+      lastSpeechTimeRef.current = Date.now();
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -87,13 +89,21 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       setStatus('recording');
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
+        // Check for total recording limit (max 90s)
         setRecordingTime(prev => {
           const next = prev + 1;
-          if (next >= 45) {
+          if (next >= 90) {
             stopRecording();
           }
           return next;
         });
+
+        // Check for silence (30s)
+        const secondsSinceLastSpeech = (Date.now() - lastSpeechTimeRef.current) / 1000;
+        if (secondsSinceLastSpeech >= 30) {
+          console.log("Silence detected (30s), stopping recording...");
+          stopRecording();
+        }
       }, 1000);
     } catch (err) {
       console.error("Failed to start recording:", err);
@@ -103,7 +113,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try { recognitionRef.current.stop(); } catch(e) {}
     }
     cleanupStream();
     setStatus('ready');
@@ -144,6 +154,27 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   };
 
   // --- Effects ---
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input or textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.key.toLowerCase() === 's' && status === 'idle' && !isDisabled) {
+        e.preventDefault();
+        startRecording();
+      } else if (e.key === 'Enter' && status === 'ready') {
+        e.preventDefault();
+        handleSend();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [status, isDisabled, startRecording, handleSend]);
 
   useEffect(() => {
     return () => cleanupStream();
