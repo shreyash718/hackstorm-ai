@@ -31,6 +31,7 @@ import tempfile
 from fastapi import File, UploadFile
 # from faster_whisper import WhisperModel (moved to lazy loader)
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.base import BaseHTTPMiddleware
 import traceback
 
 def get_supabase_admin() -> Client:
