@@ -161,53 +161,59 @@ for d in defaults:
 
 # CORS Origins will be printed on startup
 
-# --- IP Restriction Middleware for /admin/* routes ---
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-
-class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.url.path.startswith("/admin"):
-            # 1. Check for Device Secret (Cookie)
-            device_secret = os.getenv("ADMIN_DEVICE_SECRET")
-            admin_cookie = request.cookies.get("hackstorm_admin_auth")
-            
-            if device_secret and admin_cookie == device_secret:
-                return await call_next(request)
-
-            # 2. Fallback: Check for IP Restriction
-            allowed_ips_str = os.getenv("ALLOWED_ADMIN_IPS", "")
-            
-            if allowed_ips_str:
-                allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",") if ip.strip()]
-                
-                # Get client IP (handles proxies like Render/Vercel)
-                client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-                if not client_ip:
-                    client_ip = request.headers.get("x-real-ip", "")
-                if not client_ip and request.client:
-                    client_ip = request.client.host
-                
-                if client_ip not in allowed_ips:
-                    return JSONResponse(
-                        status_code=403,
-                        content={"detail": f"Access denied. Your IP ({client_ip}) is not authorized."}
-                    )
+# --- Admin Security Dependency ---
+def verify_admin_access(request: Request):
+    # 1. Check for Device Secret (Cookie or Header)
+    device_secret = os.getenv("ADMIN_DEVICE_SECRET")
+    admin_cookie = request.cookies.get("hackstorm_admin_auth")
+    admin_header = request.headers.get("X-Admin-Secret")
+    
+    if device_secret and (admin_cookie == device_secret or admin_header == device_secret):
+        return
+    
+    # 2. Fallback: Check for IP Restriction
+    allowed_ips_str = os.getenv("ALLOWED_ADMIN_IPS", "")
+    if not allowed_ips_str:
+        return # No restriction if not configured
         
-        return await call_next(request)
+    allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",") if ip.strip()]
+    
+    # Get client IP
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.headers.get("x-real-ip", "")
+    if not client_ip and request.client:
+        client_ip = request.client.host
+        
+    if client_ip not in allowed_ips:
+        raise HTTPException(status_code=403, detail=f"Access denied. Your IP ({client_ip}) is not authorized.")
 
 # --- Middleware Configuration ---
 # Note: Last added is outermost for request, but outermost for response is what we want for CORS.
 # In Starlette, middlewares wrap the app. To make CORS outermost for response, add it LAST.
 
-app.add_middleware(AdminIPRestrictionMiddleware)
+# Manual CORS Fallback Middleware
+@app.middleware("http")
+async def cors_fallback_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = JSONResponse(content="OK")
+    else:
+        response = await call_next(request)
+    
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
 
+# Standard CORSMiddleware as well
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -506,7 +512,7 @@ def fetch_report(session_id: str, user_id: str = Depends(get_current_user_id)):
     return report
 
 @app.get("/admin/dashboard")
-def get_admin_dashboard(user_id: str = Depends(get_admin_user)):
+def get_admin_dashboard(user_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     
     sessions = get_all_sessions()
     reports = get_all_reports()
@@ -543,7 +549,7 @@ class AdminActionRequest(BaseModel):
     password: str = None
 
 @app.post("/admin/users")
-def add_new_user(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
+def add_new_user(req: AdminActionRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     try:
         sb = get_supabase_admin()
         res = sb.auth.admin.create_user({
@@ -556,7 +562,7 @@ def add_new_user(req: AdminActionRequest, admin_id: str = Depends(get_admin_user
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/admin/users/{target_id}")
-def delete_user(target_id: str, admin_id: str = Depends(get_admin_user)):
+def delete_user(target_id: str, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     # Delete from Supabase via API for complete cleanup
     try:
         sb = get_supabase_admin()
@@ -569,28 +575,28 @@ def delete_user(target_id: str, admin_id: str = Depends(get_admin_user)):
     return {"message": "User deleted"}
 
 @app.post("/admin/admins")
-def promote_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
+def promote_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     make_admin(req.target_id)
     return {"message": "Promoted to admin"}
 
 @app.delete("/admin/admins/{target_id}")
-def remove_admin(target_id: str, admin_id: str = Depends(get_admin_user)):
+def remove_admin(target_id: str, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     if target_id == admin_id: raise HTTPException(status_code=400, detail="Cannot revoke yourself")
     revoke_admin(target_id)
     return {"message": "Admin revoked"}
 
 @app.post("/admin/recruiters")
-def promote_recruiter_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user)):
+def promote_recruiter_admin(req: AdminActionRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     make_recruiter(req.target_id)
     return {"message": "Promoted to recruiter"}
 
 @app.delete("/admin/recruiters/{target_id}")
-def remove_recruiter_admin(target_id: str, admin_id: str = Depends(get_admin_user)):
+def remove_recruiter_admin(target_id: str, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     revoke_recruiter(target_id)
     return {"message": "Recruiter revoked"}
 
 @app.post("/admin/problems")
-def create_problem(req: CreateProblemRequest, admin_id: str = Depends(get_admin_user)):
+def create_problem(req: CreateProblemRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     
     problem_id = add_problem({
         "title": req.title,
@@ -607,7 +613,7 @@ def create_problem(req: CreateProblemRequest, admin_id: str = Depends(get_admin_
     return {"message": "Problem added successfully", "problem_id": problem_id}
 
 @app.put("/admin/problems/{problem_id}")
-def update_problem(problem_id: int, req: CreateProblemRequest, admin_id: str = Depends(get_admin_user)):
+def update_problem(problem_id: int, req: CreateProblemRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     
     success = update_problem_in_db(problem_id, {
         "title": req.title,
@@ -624,7 +630,7 @@ def update_problem(problem_id: int, req: CreateProblemRequest, admin_id: str = D
     return {"message": "Problem updated successfully"}
 
 @app.delete("/admin/problems/{problem_id}")
-def delete_problem(problem_id: int, admin_id: str = Depends(get_admin_user)):
+def delete_problem(problem_id: int, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     
     success = delete_problem_in_db(problem_id)
     if not success:
@@ -637,7 +643,7 @@ class VisibilityRequest(BaseModel):
     is_public: bool
 
 @app.patch("/admin/problems/{problem_id}/visibility")
-def toggle_visibility(problem_id: int, req: VisibilityRequest, admin_id: str = Depends(get_admin_user)):
+def toggle_visibility(problem_id: int, req: VisibilityRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     
     success = toggle_problem_visibility_db(problem_id, req.is_public)
     if not success:
@@ -653,7 +659,7 @@ class OTPSendRequest(BaseModel):
     user_id: str
 
 @app.post("/admin/otp/send")
-def send_admin_otp(req: OTPSendRequest, admin_id: str = Depends(get_admin_user)):
+def send_admin_otp(req: OTPSendRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     email = get_user_email_by_id(admin_id)
     if not email:
         raise HTTPException(status_code=404, detail="Admin email not found")
@@ -718,7 +724,7 @@ class OTPVerifyRequest(BaseModel):
     otp_code: str
 
 @app.post("/admin/otp/verify")
-def verify_admin_otp(req: OTPVerifyRequest, admin_id: str = Depends(get_admin_user)):
+def verify_admin_otp(req: OTPVerifyRequest, admin_id: str = Depends(get_admin_user), _: None = Depends(verify_admin_access)):
     email = get_user_email_by_id(admin_id)
     if not email or not verify_otp(email, req.otp_code):
         raise HTTPException(status_code=400, detail="Invalid or expired verification code")
