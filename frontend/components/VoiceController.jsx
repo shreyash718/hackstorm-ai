@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Square, Send, Activity, RotateCcw, Loader2 } from 'lucide-react';
-import { transcribeAudio } from '@/lib/api';
 
 export default function VoiceController({ onSendMessage, isSpeaking, loading, voiceMode }) {
   const [status, setStatus] = useState('idle'); // idle, recording, uploading, transcribing, ready
@@ -10,19 +9,46 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const [recordingTime, setRecordingTime] = useState(0);
   
   const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const streamRef = useRef(null);
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
 
+  // --- Initialize Speech Recognition ---
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setInput(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'no-speech') return;
+        console.error("Speech Recognition Error:", event.error);
+        setStatus('idle');
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
   // --- Handlers ---
 
   const startRecording = useCallback(async () => {
     try {
       window.speechSynthesis.cancel();
-      audioChunksRef.current = [];
+      setInput('');
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -53,45 +79,18 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       };
       updateVolume();
 
-      // Detect best supported MIME type
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : '';
+      // Start Recognition
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+      }
 
-      // Setup MediaRecorder with low bitrate for faster upload
-      const mediaRecorder = new MediaRecorder(stream, { 
-        ...(mimeType ? { mimeType } : {}),
-        audioBitsPerSecond: 24000 
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const finalMime = mediaRecorder.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: finalMime });
-        cleanupStream();
-        handleTranscribe(audioBlob);
-      };
-
-      mediaRecorder.start();
       setStatus('recording');
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
           const next = prev + 1;
           if (next >= 45) {
-            const recorder = mediaRecorderRef.current;
-            if (recorder && recorder.state === 'recording') {
-              recorder.stop();
-              setStatus('uploading');
-            }
+            stopRecording();
           }
           return next;
         });
@@ -103,37 +102,12 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   }, []);
 
   const stopRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state === 'recording') {
-      recorder.stop();
-      setStatus('uploading');
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
-    // cleanupStream moved to onstop to avoid race conditions
+    cleanupStream();
+    setStatus('ready');
   }, []);
-
-  const handleTranscribe = async (blob) => {
-    try {
-      setStatus('uploading');
-      console.time('[STT] Total Transcription Flow');
-      const data = await transcribeAudio(blob, (percent) => {
-        if (percent >= 100) setStatus('transcribing');
-      });
-      console.timeEnd('[STT] Total Transcription Flow');
-      
-      if (!data.transcript || data.transcript.trim() === '') {
-        alert("Could not detect speech. Please try again or type your response.");
-        setStatus('idle');
-        return;
-      }
-
-      setInput(data.transcript);
-      setStatus('ready');
-    } catch (err) {
-      console.error("Transcription failed:", err);
-      setStatus('idle');
-      alert("Transcription failed. Please try again or type your response.");
-    }
-  };
 
   const cleanupStream = () => {
     if (streamRef.current) {
