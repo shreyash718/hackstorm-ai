@@ -242,11 +242,8 @@ async def chat(req: ChatRequest):
     # We expect the frontend to pass the entire history including the new message
     history = [msg.dict() for msg in req.chat_history]
     
-    # We should determine the current phase from the history
-    # For simplicity without a DB session fetch here, we can infer it or let frontend pass it.
-    # In a real app we'd fetch the session from DB and update it.
-    # We'll just infer phase transition based on history length.
-    current_phase = detect_phase_transition(history, "INTRO") 
+    # Determine current phase: prefer frontend provided phase, fallback to history-based detection
+    current_phase = req.phase if req.phase else detect_phase_transition(history, "INTRO") 
     
     # Generate system prompt
     system_prompt = build_system_prompt(

@@ -18,6 +18,12 @@ const STARTER_CODE = {
     rust: `// Write your solution here\n`
 };
 
+const PHASES = {
+  PLANNING: { id: 'PLANNING', name: 'Approach & Planning', duration: 5 * 60, next: 'CODING' },
+  CODING: { id: 'CODING', name: 'Implementation', duration: 20 * 60, next: 'REVIEW' },
+  REVIEW: { id: 'REVIEW', name: 'Review & Follow-up', duration: 5 * 60, next: null }
+};
+
 function speak(text, onEnd, queue = true) {
   if (!text) return;
 
@@ -57,7 +63,8 @@ export default function AssessmentInterviewScreen() {
   const [report, setReport] = useState(null);
   const [voiceMode, setVoiceMode] = useState(true);
 
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState('PLANNING');
+  const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
 
   useEffect(() => {
     // Load voices
@@ -105,21 +112,39 @@ export default function AssessmentInterviewScreen() {
     setLoading(false);
   }, [assessment, currentQIndex]);
 
-  // Timer countdown
+  // Phase Timer Logic
   useEffect(() => {
-    if (timeLeft <= 0 || loading || evaluating || !question) return;
+    if (loading || evaluating || !currentPhase || report || !question) return;
+
     const timer = setInterval(() => {
-        setTimeLeft(prev => {
-            if (prev <= 1) {
-                clearInterval(timer);
-                handleTimeUp();
-                return 0;
-            }
-            return prev - 1;
-        });
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          const nextPhaseId = PHASES[currentPhase].next;
+          if (nextPhaseId) {
+            setCurrentPhase(nextPhaseId);
+            const nextDuration = PHASES[nextPhaseId].duration;
+            
+            // Inform AI about phase transition
+            const transitionMsg = `[SYSTEM: Phase changed to ${PHASES[nextPhaseId].name}. Please guide the candidate accordingly.]`;
+            handleSendMessage(transitionMsg, true); // Hidden system message
+            
+            return nextDuration;
+          }
+          handleTimeUp();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [timeLeft, loading, evaluating, question]);
+  }, [currentPhase, loading, evaluating, report, question]);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   function handleTimeUp() {
     alert("Time is up for this question!");
@@ -140,12 +165,18 @@ export default function AssessmentInterviewScreen() {
     setCode(STARTER_CODE[newLang] || '// Write your solution here\n');
   }
 
-  async function handleSendMessage(text) {
-    if (!text.trim() || loading || !question?.ai_enabled) return;
+  async function handleSendMessage(text, isSystem = false) {
+    if (!text.trim() || (loading && !isSystem) || !question?.ai_enabled) return;
     
     const userMsg = { role: 'user', content: text };
-    const newHistory = [...messages, userMsg];
-    setMessages(newHistory);
+    let newHistory;
+    if (!isSystem) {
+      newHistory = [...messages, userMsg];
+      setMessages(newHistory);
+    } else {
+      newHistory = [...messages];
+    }
+
     setLoading(true);
     window.speechSynthesis.cancel(); // Interrupt AI if it's speaking
     setIsSpeaking(false);
@@ -157,6 +188,7 @@ export default function AssessmentInterviewScreen() {
         chat_history: newHistory,
         candidate_message: text,
         user_id: sessionInfo?.candidate_name,
+        phase: currentPhase
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -309,9 +341,15 @@ export default function AssessmentInterviewScreen() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="text-red-500 font-bold border border-red-500/30 bg-red-500/10 px-3 py-1.5 rounded flex items-center gap-2">
-            ⏱ {formatTime(timeLeft)}
+          <div className="flex items-center gap-3 px-4 py-1.5 bg-background border border-muted rounded-lg shadow-sm">
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] text-secondary font-bold uppercase tracking-[0.1em]">{PHASES[currentPhase].name}</span>
+              <span className={`text-sm font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
           </div>
+        </div>
 
           {question.ai_enabled && (
               <button 

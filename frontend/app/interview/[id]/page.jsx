@@ -43,6 +43,12 @@ function speak(text, onEnd, queue = true) {
   window.speechSynthesis.speak(utter);
 }
 
+const PHASES = {
+  PLANNING: { id: 'PLANNING', name: 'Approach & Planning', duration: 5 * 60, next: 'CODING' },
+  CODING: { id: 'CODING', name: 'Implementation', duration: 20 * 60, next: 'REVIEW' },
+  REVIEW: { id: 'REVIEW', name: 'Review & Follow-up', duration: 5 * 60, next: null }
+};
+
 export default function InterviewScreen() {
   const params = useParams();
   const router = useRouter();
@@ -65,6 +71,43 @@ export default function InterviewScreen() {
   const [user, setUser] = useState(null);
 
   const [sessionInfo, setSessionInfo] = useState(null);
+  const [currentPhase, setCurrentPhase] = useState('PLANNING');
+  const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
+
+  // Phase Timer Logic
+  useEffect(() => {
+    if (loading || evaluating || !currentPhase || report) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          const nextPhaseId = PHASES[currentPhase].next;
+          if (nextPhaseId) {
+            setCurrentPhase(nextPhaseId);
+            const nextDuration = PHASES[nextPhaseId].duration;
+            
+            // Inform AI about phase transition
+            const transitionMsg = `[SYSTEM: Phase changed to ${PHASES[nextPhaseId].name}. Please guide the candidate accordingly.]`;
+            handleSendMessage(transitionMsg, true); // Hidden system message
+            
+            return nextDuration;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentPhase, loading, evaluating, report]);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+  const [currentPhase, setCurrentPhase] = useState('PLANNING');
+  const [timeLeft, setTimeLeft] = useState(PHASES.PLANNING.duration);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -103,28 +146,34 @@ export default function InterviewScreen() {
     }
   }, [messages, voiceMode]);
 
-  async function handleSendMessage(text) {
-    if (!text.trim() || loading) return;
+  async function handleSendMessage(text, isSystem = false) {
+    if (!text.trim() || (loading && !isSystem)) return;
     
     // Interrupt AI if it's speaking
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
 
-    const userMsg = { role: 'user', content: text };
-    const newHistory = [...messages, userMsg];
-    setMessages(newHistory);
+    let newHistory;
+    if (!isSystem) {
+      const userMsg = { role: 'user', content: text };
+      newHistory = [...messages, userMsg];
+      setMessages(newHistory);
+    } else {
+      newHistory = [...messages];
+    }
+    
     setLoading(true);
     window.speechSynthesis.cancel(); // Interrupt any old speech
     setIsSpeaking(false);
 
     try {
-      console.log("Starting stream chat...");
       const response = await streamChatMessage({
         problem_id: problemId,
         code,
         chat_history: newHistory,
         candidate_message: text,
-        user_id: user?.id
+        user_id: user?.id,
+        phase: currentPhase
       });
 
       if (!response.ok) {
@@ -269,6 +318,15 @@ export default function InterviewScreen() {
           }`}>
             {problem.difficulty.toUpperCase()}
           </span>
+
+          <div className="flex items-center gap-3 px-4 py-1.5 bg-gray-50 dark:bg-[#030712] border border-gray-200 dark:border-[#1e293b] rounded-lg shadow-sm">
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-[0.1em]">{PHASES[currentPhase].name}</span>
+              <span className={`text-sm font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
+          </div>
         </div>
         
         <div className="flex items-center gap-4">

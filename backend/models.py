@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     candidate_message: str
     user_id: Optional[str] = None
     stream: Optional[bool] = False
+    phase: Optional[str] = None
 
 class ChatResponse(BaseModel):
     reply: str
