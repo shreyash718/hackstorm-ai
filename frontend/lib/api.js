@@ -118,7 +118,7 @@ export const transcribeAudio = async (audioBlob, onProgress) => {
   
   const response = await api.post('/transcribe', formData, {
     onUploadProgress: (progressEvent) => {
-      if (onProgress) {
+      if (onProgress && progressEvent.total) {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         onProgress(percentCompleted);
       }

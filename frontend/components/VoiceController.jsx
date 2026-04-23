@@ -13,7 +13,6 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
   const audioChunksRef = useRef([]);
   const audioContextRef = useRef(null);
   const streamRef = useRef(null);
-  const recordingTimeRef = useRef(0);
   const analyzerRef = useRef(null);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
@@ -84,13 +83,15 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
       mediaRecorder.start();
       setStatus('recording');
       setRecordingTime(0);
-      recordingTimeRef.current = 0;
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
           const next = prev + 1;
-          recordingTimeRef.current = next;
           if (next >= 45) {
-            stopRecording();
+            const recorder = mediaRecorderRef.current;
+            if (recorder && recorder.state === 'recording') {
+              recorder.stop();
+              setStatus('uploading');
+            }
           }
           return next;
         });

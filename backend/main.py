@@ -45,8 +45,8 @@ try:
         "tiny.en", 
         device="cpu", 
         compute_type="int8",
-        cpu_threads=4, # Adjust based on server CPU
-        num_workers=2
+        cpu_threads=2, # Optimized for low-resource/free hosting
+        num_workers=1
     )
 except Exception as e:
     print(f"Warning: Faster Whisper failed to load: {e}")
