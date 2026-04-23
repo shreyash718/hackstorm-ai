@@ -1,5 +1,5 @@
 import uuid
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import datetime
@@ -8,7 +8,7 @@ import time
 from models import ChatRequest, EvaluateRequest, Session, CreateProblemRequest
 from problems import get_all_problems, get_problem, add_problem
 from interviewer import build_system_prompt, call_gemini, call_gemini_stream, detect_phase_transition, detect_interview_complete
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import json
 from evaluator import generate_report
 import resend
