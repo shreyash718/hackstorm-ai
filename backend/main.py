@@ -173,17 +173,23 @@ class AdminIPRestrictionMiddleware(BaseHTTPMiddleware):
         
         return await call_next(request)
 
+# --- Middleware Configuration ---
+# Note: Last added is outermost for request, but outermost for response is what we want for CORS.
+# In Starlette, middlewares wrap the app. To make CORS outermost for response, add it LAST.
+
 app.add_middleware(AdminIPRestrictionMiddleware)
 
-# --- CORS Configuration (Outermost) ---
-# Temporarily using "*" for allow_origins to debug persistent CORS blocks
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Debugging wildcard
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/ping")
+def ping():
+    return {"status": "alive", "timestamp": datetime.datetime.now().isoformat()}
 
 @app.get("/ip")
 def get_ip(request: Request):
@@ -449,9 +455,6 @@ def persist_evaluation_report(req: EvaluateRequest, user_id: str = None):
     
     return report_data
 
-@app.post("/evaluate")
-async def evaluate(req: EvaluateRequest, user_id: str = Depends(get_current_user_id)):
-    return persist_evaluation_report(req, user_id=user_id)
 
 @app.get("/report/{session_id}")
 def fetch_report(session_id: str, user_id: str = Depends(get_current_user_id)):
