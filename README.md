@@ -80,6 +80,11 @@
 For detailed information, please refer to the following guides:
 
 - 🏗️ **[Architecture Guide](file:///c:/interview-app/docs/ARCHITECTURE.md)**: Deep dive into the system design and AI logic.
+- 📐 **[Low Level Design (LLD)](file:///c:/interview-app/docs/lld/backend-services.md)**: Detailed technical design of internal components.
+  - [Backend Services](file:///c:/interview-app/docs/lld/backend-services.md)
+  - [Frontend Features](file:///c:/interview-app/docs/lld/frontend-features.md)
+  - [Database Schema](file:///c:/interview-app/docs/lld/database-schema.md)
+  - [AI Orchestration](file:///c:/interview-app/docs/lld/ai-orchestration.md)
 - 🛡️ **[Security Guide](file:///c:/interview-app/docs/SECURITY.md)**: Detailed instructions on IP whitelisting and Device Authorization.
 - 🔌 **[API Reference](file:///c:/interview-app/docs/API_REFERENCE.md)**: Detailed documentation of all endpoints and Swagger UI.
 - 🤝 **[Contributing](file:///c:/interview-app/docs/CONTRIBUTING.md)**: Guidelines for local development and contributions.

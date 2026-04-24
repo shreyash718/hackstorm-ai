@@ -70,3 +70,9 @@ Key entities stored in PostgreSQL:
 - **Sessions**: Individual interview attempts and chat history.
 - **Reports**: Evaluation results and scores.
 - **Assessments**: Collections of problems assigned by recruiters.
+
+---
+
+## Low Level Design (LLD)
+
+For a more granular view of the implementation details, please see the **[Low Level Design Folder](file:///c:/interview-app/docs/lld/)**.
