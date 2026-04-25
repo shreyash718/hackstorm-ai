@@ -196,7 +196,7 @@ export default function InterviewScreen() {
           <Panel defaultSize={50} minSize={30}>
             <div className="h-full p-4 bg-gray-100 dark:bg-[#0f172a] transition-colors">
               <MemoizedCodeEditor 
-                key={`${problemId}-${language}`}
+                key={`${problemId}-${language}-${!!codesPerLanguage[language]}`}
                 code={codesPerLanguage[language] || code} 
                 onChange={setCode} 
                 language={language} 
