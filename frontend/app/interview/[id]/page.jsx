@@ -10,7 +10,24 @@ import ReportCard from '@/components/ReportCard';
 import useInterviewSession from '@/features/interview/hooks/useInterviewSession';
 import useSpeechOutput from '@/features/interview/hooks/useSpeechOutput';
 import useInterviewChat from '@/features/interview/hooks/useInterviewChat';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
+
+// Memoized Components for performance
+const MemoizedCodeEditor = memo(CodeEditor);
+const MemoizedChatPanel = memo(ChatPanel);
+const MemoizedVoiceController = memo(VoiceController);
+
+// Isolated Timer Component to prevent whole-page re-renders
+const TimerDisplay = ({ timeLeft, phaseName }) => (
+  <div className="flex items-center gap-3 px-4 py-1.5 bg-gray-50 dark:bg-[#030712] border border-gray-200 dark:border-[#1e293b] rounded-lg shadow-sm">
+    <div className="flex flex-col items-center">
+      <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-[0.1em]">{phaseName}</span>
+      <span className={`text-sm font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`}>
+        {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+      </span>
+    </div>
+  </div>
+);
 
 const STARTER_CODE = {
   1: {
@@ -39,16 +56,17 @@ export default function InterviewScreen() {
   const [code, setCode] = useState('');
   const [codesPerLanguage, setCodesPerLanguage] = useState({});
 
+  // Initial Code Setup - Only run when problem changes
   useEffect(() => {
-    if (problemId && !code) {
+    if (problemId) {
       const initialCodes = {};
-      ['python', 'cpp', 'java'].forEach(l => {
+      ['python', 'cpp', 'java', 'js', 'go', 'rust'].forEach(l => {
         initialCodes[l] = STARTER_CODE[problemId]?.[l] || '// Write your solution here\n';
       });
       setCodesPerLanguage(initialCodes);
       setCode(initialCodes['python']);
     }
-  }, [problemId, code]);
+  }, [problemId]);
 
   const handleLanguageChange = (newLang) => {
     setCodesPerLanguage(prev => ({ ...prev, [language]: code }));
@@ -119,14 +137,7 @@ export default function InterviewScreen() {
             {problem.difficulty.toUpperCase()}
           </span>
 
-          <div className="flex items-center gap-3 px-4 py-1.5 bg-gray-50 dark:bg-[#030712] border border-gray-200 dark:border-[#1e293b] rounded-lg shadow-sm">
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-[0.1em]">{PHASES[currentPhase].name}</span>
-              <span className={`text-sm font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`}>
-                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-              </span>
-            </div>
-          </div>
+          <TimerDisplay timeLeft={timeLeft} phaseName={PHASES[currentPhase].name} />
         </div>
         
         <div className="flex items-center gap-4">
@@ -184,7 +195,13 @@ export default function InterviewScreen() {
           {/* Code Editor Panel */}
           <Panel defaultSize={50} minSize={30}>
             <div className="h-full p-4 bg-gray-100 dark:bg-[#0f172a] transition-colors">
-              <CodeEditor code={code} onChange={setCode} language={language} onLanguageChange={handleLanguageChange} />
+              <MemoizedCodeEditor 
+                key={`${problemId}-${language}`}
+                code={codesPerLanguage[language] || code} 
+                onChange={setCode} 
+                language={language} 
+                onLanguageChange={handleLanguageChange} 
+              />
             </div>
           </Panel>
 
@@ -196,10 +213,10 @@ export default function InterviewScreen() {
           <Panel defaultSize={25} minSize={20}>
             <div className="h-full flex flex-col bg-gray-50 dark:bg-[#030712] transition-colors">
               <div className="flex-1 overflow-hidden p-4 pb-0">
-                <ChatPanel messages={messages} loading={chatLoading} />
+                <MemoizedChatPanel messages={messages} loading={chatLoading} />
               </div>
               <div className="p-4 pt-4">
-                <VoiceController 
+                <MemoizedVoiceController 
                   onSendMessage={sendMessage} 
                   isSpeaking={speech.isSpeaking} 
                   loading={chatLoading}

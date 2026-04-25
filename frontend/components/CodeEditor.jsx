@@ -34,9 +34,10 @@ export default function CodeEditor({ code, onChange, language, onLanguageChange 
       </div>
       <div className="flex-1 overflow-hidden">
         <Editor
+          key={`${language}`} // Force re-mount on language change to update defaultValue
           height="100%"
           language={language}
-          value={code}
+          defaultValue={code}
           onChange={(val) => onChange(val || '')}
           theme={editorTheme}
           options={{
@@ -46,6 +47,7 @@ export default function CodeEditor({ code, onChange, language, onLanguageChange 
             scrollBeyondLastLine: false,
             padding: { top: 16 },
             tabSize: 4,
+            automaticLayout: true,
           }}
         />
       </div>
