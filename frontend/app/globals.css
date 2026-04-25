@@ -1,125 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --bg-background: #f7ead2;
-    --bg-surface: rgba(255, 250, 239, 0.84);
-    --border-muted: rgba(126, 82, 24, 0.24);
-    --text-primary: #241407;
-    --text-secondary: #5f3e17;
-    --text-muted: #8a6a3a;
-    --hp-gold: #c7922f;
-    --hp-crimson: #7c201b;
-    --hp-emerald: #14532d;
-    --hp-bg-image: url('/images/hp-theme/light-castle.png');
-    --hp-bg-mobile: url('/images/hp-theme/light-platform.png');
-    --hp-bg-position: center center;
-    --hp-bg-overlay:
-      radial-gradient(circle at 18% 18%, rgba(255, 232, 175, 0.54), transparent 32%),
-      linear-gradient(115deg, rgba(255, 247, 228, 0.82), rgba(255, 248, 234, 0.5) 42%, rgba(75, 35, 10, 0.3));
+    --bg-background: #f8fafc;
+    --bg-surface: #ffffff;
+    --border-muted: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
   }
   
   .dark {
-    --bg-background: #080b12;
-    --bg-surface: rgba(12, 16, 27, 0.84);
-    --border-muted: rgba(218, 165, 72, 0.22);
-    --text-primary: #f6edd9;
-    --text-secondary: #d0bb8c;
-    --text-muted: #9d8859;
-    --hp-gold: #d6a044;
-    --hp-crimson: #a83228;
-    --hp-emerald: #1f7a42;
-    --hp-bg-image: url('/images/hp-theme/dark-castle.png');
-    --hp-bg-mobile: url('/images/hp-theme/dark-library.png');
-    --hp-bg-position: center center;
-    --hp-bg-overlay:
-      radial-gradient(circle at 80% 8%, rgba(214, 160, 68, 0.18), transparent 34%),
-      linear-gradient(115deg, rgba(2, 5, 12, 0.82), rgba(8, 10, 18, 0.62) 42%, rgba(2, 5, 12, 0.88));
-  }
-
-  html {
-    background: var(--bg-background);
+    --bg-background: #030712;
+    --bg-surface: #0f172a;
+    --border-muted: #1e293b;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
   }
 }
 
 body {
   color: var(--text-primary);
   background-color: var(--bg-background);
-  min-height: 100vh;
-  isolation: isolate;
-  position: relative;
-}
-
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-body::before {
-  z-index: -3;
-  background-image: var(--hp-bg-image);
-  background-position: var(--hp-bg-position);
-  background-repeat: no-repeat;
-  background-size: cover;
-  transform: translateZ(0);
-  transition: background-image 350ms ease, opacity 350ms ease;
-}
-
-body::after {
-  z-index: -2;
-  background: var(--hp-bg-overlay);
-}
-
-body .min-h-screen {
-  background-color: transparent !important;
-}
-
-body .bg-surface {
-  box-shadow: 0 18px 60px rgba(35, 19, 4, 0.08);
-  backdrop-filter: blur(16px);
-}
-
-.dark body .bg-surface {
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36);
-}
-
-h1,
-h2,
-h3,
-.font-display {
-  font-family: 'Cinzel', Georgia, serif;
-  letter-spacing: 0;
 }
 
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.5s ease forwards;
-  }
-
-  .magical-panel {
-    background: var(--bg-surface);
-    border-color: var(--border-muted);
-    box-shadow: 0 18px 60px rgba(35, 19, 4, 0.12);
-    backdrop-filter: blur(18px);
-  }
-
-  .spell-gradient {
-    background-image: linear-gradient(135deg, var(--hp-crimson), var(--hp-gold));
-  }
-}
-
-@media (max-width: 768px) {
-  body::before {
-    background-image: var(--hp-bg-mobile);
-    background-position: center center;
   }
 }
 
@@ -143,17 +55,17 @@ h3,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(126, 82, 24, 0.38);
+  background: #cbd5e1;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(126, 82, 24, 0.58);
+  background: #94a3b8;
 }
 
 /* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(214, 160, 68, 0.26);
+  background: #1e293b;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(214, 160, 68, 0.42);
+  background: #334155;
 }

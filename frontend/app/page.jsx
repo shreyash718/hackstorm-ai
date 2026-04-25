@@ -14,6 +14,14 @@ const DIFFICULTY_COLORS = {
   Hard: { bg: '#3a0a0a', text: '#f87171', border: '#991b1b' },
 };
 
+const PAGE_BACKGROUND_CLASS = [
+  "bg-[image:linear-gradient(115deg,rgba(255,247,228,0.82),rgba(255,248,234,0.5)_42%,rgba(75,35,10,0.3)),url('/images/hp-theme/light-castle.png')]",
+  "dark:bg-[image:linear-gradient(115deg,rgba(2,5,12,0.82),rgba(8,10,18,0.62)_42%,rgba(2,5,12,0.88)),url('/images/hp-theme/dark-castle.png')]",
+  "md:max-lg:bg-[image:linear-gradient(115deg,rgba(255,247,228,0.82),rgba(255,248,234,0.48)_42%,rgba(75,35,10,0.28)),url('/images/hp-theme/light-platform.png')]",
+  "md:max-lg:dark:bg-[image:linear-gradient(115deg,rgba(2,5,12,0.82),rgba(8,10,18,0.58)_42%,rgba(2,5,12,0.88)),url('/images/hp-theme/dark-library.png')]",
+  "bg-cover bg-center bg-fixed"
+].join(' ');
+
 // Framer Motion Variants
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -134,7 +142,7 @@ export default function Home() {
   // -------------------------------------------------------------
   if (loadingAuth) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${PAGE_BACKGROUND_CLASS}`}>
         <motion.div 
           animate={{ rotate: 360 }} 
           transition={{ repeat: Infinity, ease: "linear", duration: 1 }} 
@@ -149,7 +157,7 @@ export default function Home() {
   // -------------------------------------------------------------
   if (!user) {
     return (
-      <div className="min-h-screen bg-background text-primary font-sans selection:bg-blue-500/30 overflow-hidden relative transition-colors duration-300">
+      <div className={`min-h-screen text-primary font-sans selection:bg-blue-500/30 overflow-hidden relative transition-colors duration-300 ${PAGE_BACKGROUND_CLASS}`}>
         
         {/* Navbar */}
         <motion.nav 
@@ -428,7 +436,7 @@ export default function Home() {
   const filteredProblems = problems.filter(p => difficultyFilter === 'All' || p.difficulty === difficultyFilter);
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] text-gray-900 dark:text-gray-100 font-sans pb-32 relative overflow-hidden transition-colors duration-300">
+    <div className={`min-h-screen text-gray-900 dark:text-gray-100 font-sans pb-32 relative overflow-hidden transition-colors duration-300 ${PAGE_BACKGROUND_CLASS}`}>
       
       {/* Background Decor */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay bg-black"></div>
