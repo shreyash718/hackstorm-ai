@@ -174,8 +174,21 @@ export default function RecruiterLoginPage() {
   };
 
   const handleGoogleAuth = async () => {
-    // Navigate to the OAuth initiator page which sets localStorage + starts Google flow
-    window.location.href = '/auth/google?next=/recruiter/dashboard';
+    setLoading(true);
+    setError(null);
+    localStorage.setItem('redirectAfterAuth', '/recruiter/dashboard');
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
   };
 
   return (

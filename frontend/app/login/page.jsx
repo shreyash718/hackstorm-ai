@@ -141,7 +141,22 @@ export default function CandidateLoginPage() {
     if (redirectInfo && redirectInfo.redirect === 'problem') {
         nextPath = `/interview/${redirectInfo.id}`;
     }
-    window.location.href = `/auth/google?next=${nextPath}`;
+
+    setLoading(true);
+    setError(null);
+    localStorage.setItem('redirectAfterAuth', nextPath);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
   };
 
   return (
