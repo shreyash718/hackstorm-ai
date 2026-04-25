@@ -114,7 +114,7 @@ export default function VoiceController({ onSendMessage, isSpeaking, loading, vo
               {loading ? 'Processing...' : isSpeaking ? 'AI Speaking...' : status === 'recording' ? 'Speaking...' : 'Ready to Start'}
             </span>
             <span className="text-[9px] tracking-tight font-medium text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-slate-900/50 px-2 py-0.5 rounded-full border border-gray-200 dark:border-slate-800">
-              Press <kbd className="font-bold text-blue-500 px-1">S</kbd> to Start/Stop speaking • <kbd className="font-bold text-blue-500 px-1">Enter</kbd> to Send
+              Press <kbd className="font-bold text-blue-500 px-1">Ctrl + L</kbd> to Start/Stop speaking • <kbd className="font-bold text-blue-500 px-1">Enter</kbd> to Send
             </span>
           </div>
         </div>

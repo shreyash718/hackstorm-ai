@@ -162,10 +162,19 @@ export default function useVoiceInput({ onTranscriptReady, onSend, disabled }) {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      // Don't trigger if user is typing in an input, textarea, or the code editor
+      if (
+        e.target.tagName === 'INPUT' || 
+        e.target.tagName === 'TEXTAREA' || 
+        e.target.isContentEditable ||
+        e.target.closest('.monaco-editor')
+      ) {
+        return;
+      }
 
       const key = e.key.toLowerCase();
-      if (key === 's') {
+      // Start/Stop Recording with Ctrl+L
+      if (e.ctrlKey && key === 'l') {
         e.preventDefault();
         const currentStatus = statusRef.current;
         if (currentStatus === 'recording') {
