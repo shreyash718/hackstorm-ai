@@ -21,7 +21,12 @@ export default function useSpeechOutput({ enabled }) {
 
     const utter = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
+    
+    // Prioritize high-quality male voices for Arjun
     const preferred = voices.find(v => 
+      v.lang.startsWith("en") && 
+      (v.name.includes("Male") || v.name.includes("David") || v.name.includes("Daniel") || v.name.includes("Alex") || v.name.includes("Guy"))
+    ) || voices.find(v => 
       v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural"))
     ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
     
