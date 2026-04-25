@@ -710,3 +710,6 @@ def get_progress_history(user_id: str, target_id: str = None):
         return []
     finally:
         release_db_connection(conn)
+
+
+
