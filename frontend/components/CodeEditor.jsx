@@ -42,12 +42,17 @@ export default function CodeEditor({ code, onChange, language, onLanguageChange 
           theme={editorTheme}
           options={{
             fontSize: 14,
-            fontFamily: "'JetBrains Mono', monospace",
+            lineHeight: 22,
+            letterSpacing: 0,
+            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+            fontLigatures: false, // Disabling ligatures fixes cursor offset issues
             minimap: { enabled: false },
             scrollBeyondLastLine: false,
             padding: { top: 16 },
             tabSize: 4,
             automaticLayout: true,
+            cursorSmoothCaretAnimation: "on",
+            renderWhitespace: "none",
           }}
         />
       </div>
