@@ -23,12 +23,12 @@ export default function NotFound() {
       <motion.div
         animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.25, 0.15] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[150px] rounded-full pointer-events-none"
+        className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-amber-600/15 blur-[150px] rounded-full pointer-events-none"
       />
       <motion.div
         animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.2, 0.1] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
-        className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/15 blur-[150px] rounded-full pointer-events-none"
+        className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-900/10 blur-[150px] rounded-full pointer-events-none"
       />
 
       {/* Theme toggle */}
@@ -49,8 +49,12 @@ export default function NotFound() {
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           className="mb-8"
         >
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-violet-500/20 border border-blue-500/20 dark:border-blue-500/10 flex items-center justify-center backdrop-blur-sm shadow-[0_0_60px_rgba(59,130,246,0.15)]">
-            <Ghost size={48} className="text-blue-500 dark:text-blue-400" />
+          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 to-red-900/20 border border-amber-500/20 dark:border-amber-500/10 flex items-center justify-center backdrop-blur-sm shadow-[0_0_60px_rgba(245,158,11,0.15)] relative">
+            <Ghost size={48} className="text-amber-500 dark:text-amber-400" />
+            {/* Floating sparkles around ghost */}
+            <div className="absolute -top-2 -right-1 w-1.5 h-1.5 bg-amber-400/50 rounded-full animate-sparkle" />
+            <div className="absolute -bottom-1 -left-2 w-1 h-1 bg-yellow-400/40 rounded-full animate-sparkle" style={{animationDelay: '1s'}} />
+            <div className="absolute top-2 -left-3 w-1 h-1 bg-amber-300/30 rounded-full animate-sparkle" style={{animationDelay: '2s'}} />
           </div>
         </motion.div>
 
@@ -106,7 +110,7 @@ export default function NotFound() {
             <motion.div
               whileHover={{ scale: 1.05, boxShadow: '0px 0px 30px rgba(59,130,246,0.4)' }}
               whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold tracking-widest text-xs px-8 py-4 rounded-xl shadow-lg uppercase cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-600 to-red-800 text-white font-bold tracking-widest text-xs px-8 py-4 rounded-xl shadow-lg uppercase cursor-pointer"
             >
               <Home size={16} /> Return Home
             </motion.div>
@@ -120,6 +124,16 @@ export default function NotFound() {
             <ArrowLeft size={16} /> Go Back
           </motion.div>
         </div>
+
+        {/* Easter Egg */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.3, 0] }}
+          transition={{ duration: 4, repeat: Infinity, repeatDelay: 8 }}
+          className="mt-10 text-[9px] font-mono italic text-amber-700/30 dark:text-amber-400/15 tracking-[0.3em] select-none"
+        >
+          mischief managed
+        </motion.p>
       </motion.div>
     </div>
   );

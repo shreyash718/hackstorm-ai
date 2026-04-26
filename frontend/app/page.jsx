@@ -159,8 +159,8 @@ export default function Home() {
           className="absolute top-0 w-full p-6 flex justify-between items-center z-50"
         >
           <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Code2 size={18} className="text-white" />
+            <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-red-800 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <span className="text-white text-sm">⚡</span>
             </div>
             Interview Blitz <span className="text-blue-500">AI</span>
           </div>
@@ -189,13 +189,59 @@ export default function Home() {
         <motion.div 
           animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" 
+          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-600/20 blur-[120px] rounded-full pointer-events-none" 
         />
         <motion.div 
           animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/20 blur-[120px] rounded-full pointer-events-none" 
+          className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-900/15 blur-[120px] rounded-full pointer-events-none" 
         />
+
+        {/* Golden Snitch */}
+        <div className="absolute top-[18%] right-[12%] z-20 pointer-events-none animate-snitch" title="You caught the Golden Snitch!">
+          <div className="w-3.5 h-3.5 bg-gradient-to-br from-yellow-300 to-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] relative">
+            <div className="absolute top-1/2 -left-1.5 w-1.5 h-[3px] bg-yellow-200/40 rounded-full -translate-y-1/2 rotate-[-25deg]" />
+            <div className="absolute top-1/2 -right-1.5 w-1.5 h-[3px] bg-yellow-200/40 rounded-full -translate-y-1/2 rotate-[25deg]" />
+          </div>
+        </div>
+
+        {/* Floating Candles (Great Hall style) */}
+        <div className="absolute top-[8%] left-[20%] pointer-events-none animate-candle" style={{animationDelay: '0s'}}>
+          <div className="w-1 h-6 bg-gradient-to-t from-amber-200 to-amber-50 rounded-full opacity-40">
+            <div className="w-2 h-2 bg-amber-400/80 rounded-full -mt-1 -ml-[2px] animate-flicker" />
+          </div>
+        </div>
+        <div className="absolute top-[12%] left-[35%] pointer-events-none animate-candle" style={{animationDelay: '1.5s'}}>
+          <div className="w-1 h-5 bg-gradient-to-t from-amber-200 to-amber-50 rounded-full opacity-30">
+            <div className="w-1.5 h-1.5 bg-amber-400/70 rounded-full -mt-1 animate-flicker" style={{animationDelay: '0.5s'}} />
+          </div>
+        </div>
+        <div className="absolute top-[6%] right-[25%] pointer-events-none animate-candle" style={{animationDelay: '2.8s'}}>
+          <div className="w-1 h-7 bg-gradient-to-t from-amber-200 to-amber-50 rounded-full opacity-35">
+            <div className="w-2 h-2 bg-amber-400/80 rounded-full -mt-1 -ml-[2px] animate-flicker" style={{animationDelay: '1s'}} />
+          </div>
+        </div>
+        <div className="absolute top-[10%] right-[45%] pointer-events-none animate-candle" style={{animationDelay: '0.8s'}}>
+          <div className="w-0.5 h-4 bg-gradient-to-t from-amber-200 to-amber-50 rounded-full opacity-25">
+            <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full -mt-0.5 animate-flicker" style={{animationDelay: '1.5s'}} />
+          </div>
+        </div>
+
+        {/* Magical Sparkle Particles */}
+        <div className="absolute top-[25%] left-[8%] w-1.5 h-1.5 bg-amber-400/50 rounded-full pointer-events-none animate-sparkle" style={{animationDelay: '0s'}} />
+        <div className="absolute top-[40%] right-[6%] w-1 h-1 bg-yellow-300/40 rounded-full pointer-events-none animate-sparkle" style={{animationDelay: '1s'}} />
+        <div className="absolute top-[60%] left-[15%] w-1 h-1 bg-amber-300/30 rounded-full pointer-events-none animate-sparkle" style={{animationDelay: '2s'}} />
+        <div className="absolute top-[35%] right-[20%] w-1.5 h-1.5 bg-yellow-400/35 rounded-full pointer-events-none animate-sparkle" style={{animationDelay: '0.5s'}} />
+        <div className="absolute top-[55%] left-[40%] w-1 h-1 bg-amber-400/25 rounded-full pointer-events-none animate-sparkle" style={{animationDelay: '1.5s'}} />
+
+        {/* Deathly Hallows Watermark */}
+        <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.04] animate-slow-spin">
+          <svg width="300" height="300" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="50,5 10,90 90,90" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <circle cx="50" cy="62" r="20" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <line x1="50" y1="5" x2="50" y2="90" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </div>
 
         {/* Hero Section */}
         <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center pt-20">
@@ -216,10 +262,10 @@ export default function Home() {
 
             <motion.div variants={fadeUpVariant} className="flex flex-col sm:flex-row gap-4">
               <motion.button 
-                whileHover={{ scale: 1.05, boxShadow: "0px 0px 60px rgba(59,130,246,0.5)" }}
+                whileHover={{ scale: 1.05, boxShadow: "0px 0px 60px rgba(245,158,11,0.5)" }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.push('/login')} 
-                className="group relative flex items-center justify-center gap-2 bg-primary text-background font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-colors"
+                className="group relative flex items-center justify-center gap-2 bg-primary text-background font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(245,158,11,0.2)] transition-colors"
               >
                 I&apos;m a Student <motion.div animate={{ x: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}><ArrowRight size={20} /></motion.div>
               </motion.button>
@@ -399,7 +445,7 @@ export default function Home() {
                   whileHover={{ scale: 1.05, boxShadow: "0px 0px 40px rgba(59,130,246,0.5)" }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => router.push('/login')} 
-                  className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.4)] transition-colors"
+                  className="bg-gradient-to-r from-amber-600 to-red-800 hover:from-amber-500 hover:to-red-700 text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_0_30px_rgba(245,158,11,0.3)] transition-colors"
                 >
                   Student Sign Up
                 </motion.button>
@@ -442,8 +488,8 @@ export default function Home() {
           className="max-w-6xl mx-auto bg-white/80 dark:bg-black/40 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-sm dark:shadow-2xl transition-colors"
         >
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Code2 size={16} className="text-white" />
+            <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-red-800 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <span className="text-white text-xs">⚡</span>
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-bold tracking-widest text-sm text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 transition-colors">INTERVIEW BLITZ</span>
@@ -505,8 +551,14 @@ export default function Home() {
           
           {loadingProblems ? (
             <div className="bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-3xl p-16 text-center text-gray-500 flex flex-col items-center shadow-sm dark:shadow-2xl transition-colors">
-              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, ease: "linear", duration: 1 }} className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full mb-4" />
-              <span className="font-bold tracking-widest text-sm text-violet-500">DECRYPTING ALGORITHMS...</span>
+              {/* Golden Snitch Spinner */}
+              <div className="mb-4 animate-snitch">
+                <div className="w-5 h-5 bg-gradient-to-br from-yellow-300 to-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.6)] relative">
+                  <div className="absolute top-1/2 -left-2 w-2 h-[3px] bg-yellow-200/50 rounded-full -translate-y-1/2 rotate-[-25deg]" />
+                  <div className="absolute top-1/2 -right-2 w-2 h-[3px] bg-yellow-200/50 rounded-full -translate-y-1/2 rotate-[25deg]" />
+                </div>
+              </div>
+              <span className="font-bold tracking-widest text-sm text-amber-500">DECRYPTING ALGORITHMS...</span>
             </div>
           ) : filteredProblems.length === 0 ? (
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-3xl p-16 text-center shadow-sm dark:shadow-2xl transition-colors">
@@ -525,7 +577,7 @@ export default function Home() {
                     variants={fadeUpVariant}
                     whileHover={{ scale: 1.01 }}
                     onClick={() => handleStart(p.id)}
-                    className="group bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 cursor-pointer shadow-sm dark:shadow-2xl relative overflow-hidden transition-all hover:border-blue-500/30 dark:hover:border-blue-500/30"
+                    className="group bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 cursor-pointer shadow-sm dark:shadow-2xl relative overflow-hidden transition-all hover:border-amber-500/40 dark:hover:border-amber-500/40 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)]"
                   >
                     {/* Glow indicator */}
                     <div className={`absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity ${
