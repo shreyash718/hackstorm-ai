@@ -81,8 +81,8 @@ export default function CandidateDashboard() {
         <div className="max-w-7xl mx-auto bg-white/70 dark:bg-black/40 backdrop-blur-xl border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm transition-colors">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 font-bold text-sm tracking-widest cursor-pointer" onClick={() => router.push('/')}>
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Brain size={16} className="text-white" />
+              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-red-800 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/20">
+                <span className="text-white text-xs">⚡</span>
               </div>
               INTERVIEW BLITZ
             </div>
@@ -99,6 +99,13 @@ export default function CandidateDashboard() {
         </div>
       </nav>
 
+      {/* Golden shimmer accent below nav */}
+      <div className="fixed top-[76px] w-full z-50 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="h-[2px] border-shimmer rounded-full" />
+        </div>
+      </div>
+
       <main className="max-w-7xl mx-auto pt-28 px-4 pb-20">
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -111,7 +118,7 @@ export default function CandidateDashboard() {
               initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
               className="bg-white dark:bg-[#111] border border-border rounded-3xl p-6 shadow-sm dark:shadow-2xl overflow-hidden relative"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
               
               <div className="flex justify-between items-start mb-6 relative z-10">
                 <div>
@@ -360,10 +367,24 @@ export default function CandidateDashboard() {
         {/* Bottom AI Recommendations Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-          className="mt-6 bg-gradient-to-br from-blue-600 to-violet-600 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden"
+          className="mt-6 bg-gradient-to-br from-red-900 to-amber-600 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-3xl rounded-full -mr-32 -mt-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 blur-3xl rounded-full -ml-24 -mb-24" />
+          
+          {/* Deathly Hallows Watermark */}
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-[0.08] pointer-events-none animate-slow-spin">
+            <svg width="120" height="120" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="50,5 10,90 90,90" stroke="white" strokeWidth="2" fill="none" />
+              <circle cx="50" cy="62" r="20" stroke="white" strokeWidth="2" fill="none" />
+              <line x1="50" y1="5" x2="50" y2="90" stroke="white" strokeWidth="2" />
+            </svg>
+          </div>
+
+          {/* Floating sparkles */}
+          <div className="absolute top-6 left-12 w-1.5 h-1.5 bg-amber-300/50 rounded-full animate-sparkle" />
+          <div className="absolute bottom-8 right-40 w-1 h-1 bg-yellow-300/40 rounded-full animate-sparkle" style={{animationDelay: '1.5s'}} />
+          <div className="absolute top-16 left-1/3 w-1 h-1 bg-amber-200/30 rounded-full animate-sparkle" style={{animationDelay: '0.7s'}} />
           
           <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
             <div className="md:col-span-8">
@@ -393,6 +414,9 @@ export default function CandidateDashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* Easter Egg */}
+        <p className="text-center mt-4 text-[9px] font-mono text-gray-300 dark:text-gray-800 tracking-[0.2em] select-none italic" title="🪄">I solemnly swear that I am up to no good</p>
 
       </main>
     </div>

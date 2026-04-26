@@ -128,7 +128,7 @@ export default function InterviewScreen() {
             ← back
           </button>
           <div className="h-4 w-px bg-gray-200 dark:bg-[#1e293b]" />
-          <span className="text-gray-900 dark:text-white text-sm font-semibold">{problem.title}</span>
+          <span className="text-gray-900 dark:text-white text-sm font-semibold">⚡ {problem.title}</span>
           <span className={`text-[10px] tracking-widest font-bold px-2 py-0.5 rounded border ${
             problem.difficulty === 'Easy' ? 'border-green-400/50 dark:border-green-500/50 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
             problem.difficulty === 'Medium' ? 'border-yellow-400/50 dark:border-yellow-500/50 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' :
@@ -166,6 +166,9 @@ export default function InterviewScreen() {
           </button>
         </div>
       </div>
+
+      {/* Golden shimmer accent below topbar */}
+      <div className="h-[2px] border-shimmer shrink-0" />
 
       {/* Main Workspace */}
       <div className="flex-1 overflow-hidden">

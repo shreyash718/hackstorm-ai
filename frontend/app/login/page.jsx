@@ -32,7 +32,7 @@ const InterviewSimulationAnimation = () => {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       
       {/* Ambient Glow */}
-      <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+      <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-amber-600/15 rounded-full blur-[120px]" />
       
       <div className="absolute inset-0 flex items-center justify-center p-12">
         <div className="w-full max-w-2xl h-[600px] relative">
@@ -89,6 +89,16 @@ const InterviewSimulationAnimation = () => {
     </div>
   );
 };
+
+/* Floating Sparkles Component */
+const FloatingSparkles = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+    <div className="absolute top-[20%] right-[15%] w-1.5 h-1.5 bg-amber-400/40 rounded-full animate-sparkle" style={{animationDelay: '0s'}} />
+    <div className="absolute top-[50%] right-[25%] w-1 h-1 bg-yellow-300/30 rounded-full animate-sparkle" style={{animationDelay: '1.2s'}} />
+    <div className="absolute top-[70%] right-[10%] w-1 h-1 bg-amber-300/25 rounded-full animate-sparkle" style={{animationDelay: '2.4s'}} />
+    <div className="absolute top-[35%] right-[35%] w-1.5 h-1.5 bg-yellow-400/30 rounded-full animate-sparkle" style={{animationDelay: '0.8s'}} />
+  </div>
+);
 
 export default function CandidateLoginPage() {
   const router = useRouter();
@@ -156,8 +166,10 @@ export default function CandidateLoginPage() {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center relative px-6 z-10">
         
         {/* Subtle background glow for the form side */}
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-600/10 blur-[150px] pointer-events-none rounded-full" />
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-amber-600/8 blur-[150px] pointer-events-none rounded-full" />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.15] pointer-events-none mix-blend-overlay"></div>
+
+        <FloatingSparkles />
 
         <div className="absolute top-6 right-6">
           <ThemeToggle />
@@ -170,8 +182,8 @@ export default function CandidateLoginPage() {
           className="w-full max-w-md"
         >
             <div className="flex items-center gap-3 mb-10">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.4)]">
-                    <Sparkles className="text-white" size={24}/>
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-red-800 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                    <span className="text-white text-xl">⚡</span>
                 </div>
                 <div>
                     <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 tracking-widest uppercase transition-colors">
@@ -182,7 +194,7 @@ export default function CandidateLoginPage() {
             </div>
 
             <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-red-800" />
                 
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-8 leading-relaxed transition-colors">
                     {isSignUp 
@@ -264,6 +276,11 @@ export default function CandidateLoginPage() {
                 >
                     {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                 </button>
+            </div>
+
+            {/* Platform 9¾ Easter Egg */}
+            <div className="mt-6 text-center">
+              <span className="text-[9px] font-mono text-gray-300 dark:text-gray-700 tracking-widest select-none" title="You found Platform 9¾!">⚡ PLATFORM 9¾ ⚡</span>
             </div>
 
         </motion.div>
