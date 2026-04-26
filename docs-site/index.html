@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HackStorm AI | Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <nav>
+        <div class="nav-content">
+            <div class="logo">HackStorm<span>AI</span></div>
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#setup">Setup</a></li>
+                <li><a href="#shortcuts">Shortcuts</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header>
+        <h1>How to Use <span>HackStorm AI</span></h1>
+        <p>Your premium AI-powered technical interview simulator. Real-time voice, live coding, and instant evaluation.</p>
+        <div class="cta-group">
+            <a href="#setup" class="btn btn-primary">Get Started</a>
+            <a href="https://github.com/shreyash718/hackstorm-ai" class="btn btn-outline">View Repo</a>
+        </div>
+    </header>
+
+    <main>
+        <section id="features" class="grid">
+            <div class="card">
+                <div class="icon">🎤</div>
+                <h3>Voice First</h3>
+                <p>Natural conversation with Arjun, our AI interviewer. Uses high-quality TTS and speech recognition.</p>
+            </div>
+            <div class="card">
+                <div class="icon">💻</div>
+                <h3>Live Editor</h3>
+                <p>Full Monaco Editor integration with support for Python, C++, Java, and more.</p>
+            </div>
+            <div class="card">
+                <div class="icon">⚡</div>
+                <h3>Instant Feedback</h3>
+                <p>Get detailed performance reports and scores immediately after the session.</p>
+            </div>
+        </section>
+
+        <section id="setup">
+            <h2>🚀 Quick Start for Teammates</h2>
+            <div class="setup-container">
+                <div class="setup-step">
+                    <h4>1. Clone & Install</h4>
+                    <div class="code-block">
+                        <pre><code>git clone https://github.com/shreyash718/hackstorm-ai.git
+cd hackstorm-ai/frontend
+npm install</code></pre>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                </div>
+
+                <div class="setup-step">
+                    <h4>2. Configure Environment</h4>
+                    <p>Create a <code>.env.local</code> file in the <code>frontend/</code> folder:</p>
+                    <div class="code-block">
+                        <pre><code>NEXT_PUBLIC_API_URL=https://hackstorm-ai.onrender.com
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key</code></pre>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                </div>
+
+                <div class="setup-step">
+                    <h4>3. Run Locally</h4>
+                    <div class="code-block">
+                        <pre><code>npm run dev</code></pre>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                    <p>Open <a href="http://localhost:3000">localhost:3000</a> to start.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="shortcuts">
+            <h2>⌨️ Keyboard Shortcuts</h2>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <span class="key">Ctrl</span> + <span class="key">L</span>
+                    <span class="desc">Toggle Voice Recording (Start/Stop)</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">Enter</span>
+                    <span class="desc">Send message (when recording is ready)</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">Shift</span> + <span class="key">Enter</span>
+                    <span class="desc">New line in code editor</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 HackStorm AI. Built for the future of technical hiring.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
