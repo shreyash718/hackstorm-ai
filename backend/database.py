@@ -113,9 +113,10 @@ def save_report(report_data: Dict[str, Any]):
                 INSERT INTO reports (
                     id, session_id, user_id, overall_score, problem_solving, code_quality,
                     communication, optimization, debugging, hire_recommendation, strengths,
-                    improvements, time_complexity, space_complexity, summary, final_code
+                    improvements, time_complexity, space_complexity, summary, final_code,
+                    detailed_metrics
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 report_data.get("id"),
                 report_data.get("session_id"),
@@ -132,7 +133,8 @@ def save_report(report_data: Dict[str, Any]):
                 report_data.get("time_complexity"),
                 report_data.get("space_complexity"),
                 report_data.get("summary"),
-                report_data.get("final_code")
+                report_data.get("final_code"),
+                json.dumps(report_data.get("detailed_metrics", {}))
             ))
             return True
     except Exception as e:

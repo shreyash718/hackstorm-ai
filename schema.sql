@@ -33,6 +33,7 @@ CREATE TABLE reports (
   space_complexity TEXT,
   summary TEXT,
   final_code TEXT,
+  detailed_metrics JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
