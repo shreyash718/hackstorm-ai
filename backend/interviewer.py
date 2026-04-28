@@ -43,83 +43,50 @@ CONVERSATION SO FAR:
 {history}
 """
 
-_openai_client = None
+from google import genai
+from google.genai import types
+
+_gemini_client = None
 
 def get_llm_client():
-    global _openai_client
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
-    if provider == "ollama":
-        return None
-    
-    if _openai_client is None:
-        _openai_client = openai.OpenAI(
-            api_key=os.getenv("LLM_API_KEY"),
-            base_url=os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-        )
-    return _openai_client
+    global _gemini_client
+    if _gemini_client is None:
+        api_key = os.getenv("GEMINI_API_KEY")
+        _gemini_client = genai.Client(api_key=api_key)
+    return _gemini_client
 
 def call_gemini(system_prompt: str, user_message: str) -> str:
-    """Generic LLM call (keeping name for compatibility)."""
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
-    model = os.getenv("LLM_MODEL", "mistral")
-    
+    """LLM call using google.genai SDK."""
     try:
-        if provider == "ollama":
-            response = ollama.chat(
-                model=model,
-                messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_message}
-                ]
+        client = get_llm_client()
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
             )
-            return response['message']['content'].strip()
-        else:
-            client = get_llm_client()
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_message}
-                ]
-            )
-            return response.choices[0].message.content.strip()
+        )
+        return response.text.strip()
     except Exception as e:
-        print(f"LLM Error ({provider}): {e}")
+        print(f"Gemini API Error: {e}")
         raise
 
 def call_gemini_stream(system_prompt: str, user_message: str):
-    """Generic LLM stream (keeping name for compatibility)."""
-    provider = os.getenv("LLM_PROVIDER", "ollama").lower()
-    model = os.getenv("LLM_MODEL", "mistral")
-    
+    """LLM stream using google.genai SDK."""
     try:
-        if provider == "ollama":
-            stream = ollama.chat(
-                model=model,
-                messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_message}
-                ],
-                stream=True
+        client = get_llm_client()
+        response_stream = client.models.generate_content_stream(
+            model="gemini-3-flash-preview",
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
             )
-            for chunk in stream:
-                if 'message' in chunk and 'content' in chunk['message']:
-                    yield chunk['message']['content']
-        else:
-            client = get_llm_client()
-            stream = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_message}
-                ],
-                stream=True
-            )
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+        )
+        for chunk in response_stream:
+            if chunk.text:
+                yield chunk.text
     except Exception as e:
-        print(f"LLM Stream Error ({provider}): {e}")
+        print(f"Gemini API Stream Error: {e}")
         raise
 
 def detect_phase_transition(history: List[Dict[str, str]], current_phase: str) -> str:
