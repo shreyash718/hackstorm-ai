@@ -362,6 +362,31 @@ def get_assessment_details(assessment_id: str):
         release_db_connection(conn)
 
 # ==========================================
+# RECRUITER & ASSESSMENT OPERATIONS
+# ==========================================
+
+def get_assessment_results(assessment_id: str):
+    conn = get_db_connection()
+    if not conn: return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT s.id as session_id, s.candidate_name, s.started_at, 
+                       r.id as report_id, r.overall_score, r.hire_recommendation,
+                       p.title as problem_title
+                FROM sessions s
+                LEFT JOIN reports r ON s.id = r.session_id
+                LEFT JOIN problems p ON s.problem_id = p.id
+                WHERE s.assessment_id = %s
+                ORDER BY s.started_at DESC
+            """, (assessment_id,))
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching assessment results: {e}")
+        return []
+    finally:
+        release_db_connection(conn)
+
 # SUPABASE USER OPERATIONS
 # ==========================================
 

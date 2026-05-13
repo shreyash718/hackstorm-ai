@@ -204,3 +204,8 @@ export const createAssessment = async (data) => {
   const response = await api.post('/assessment', data);
   return response.data;
 };
+
+export const fetchAssessmentResults = async (assessmentId) => {
+  const response = await api.get(`/assessment/${assessmentId}/results`);
+  return response.data;
+};

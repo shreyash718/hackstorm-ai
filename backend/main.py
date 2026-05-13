@@ -20,7 +20,7 @@ from database import (
     get_all_sessions, get_all_reports, get_all_users, delete_user_by_id,
     get_all_admins, make_admin, revoke_admin, get_all_recruiters,
     check_recruiter, make_recruiter, revoke_recruiter, create_assessment_in_db,
-    get_assessments_by_recruiter, get_assessment_details,
+    get_assessments_by_recruiter, get_assessment_details, get_assessment_results,
     get_all_problems_db, update_problem_in_db, delete_problem_in_db, toggle_problem_visibility_db,
     save_otp, verify_otp, get_user_email_by_id,
     get_db_connection, release_db_connection
@@ -689,6 +689,10 @@ def fetch_assessment(assessment_id: str):
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
     return assessment
+
+@app.get("/assessment/{assessment_id}/results")
+def fetch_assessment_results(assessment_id: str, recruiter_id: str = Depends(get_recruiter_user)):
+    return get_assessment_results(assessment_id)
 
 @app.post("/assessment/{assessment_id}/evaluate")
 async def evaluate_assessment_candidate(assessment_id: str, req: EvaluateRequest):
