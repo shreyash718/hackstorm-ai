@@ -7,7 +7,7 @@ import time
 
 from models import ChatRequest, EvaluateRequest, Session, CreateProblemRequest
 from problems import get_all_problems, get_problem, add_problem
-from interviewer import build_system_prompt, call_gemini, call_gemini_stream, detect_phase_transition, detect_interview_complete
+from interviewer import build_system_prompt, call_llm, call_llm_stream, detect_phase_transition, detect_interview_complete
 from fastapi.responses import StreamingResponse, JSONResponse
 import json
 from evaluator import generate_report
@@ -68,50 +68,8 @@ async def get_recruiter_user(user_id: str = Depends(get_current_user_id)) -> str
         raise HTTPException(status_code=403, detail="Recruiter access required")
     return user_id
 
-# Lazy Whisper Initialization
-whisper_model = None
-
-def get_whisper_model():
-    global whisper_model
-    if whisper_model is not None:
-        return whisper_model
-    
-    try:
-        print("Initializing Whisper model (lazy)...")
-        from faster_whisper import WhisperModel
-        whisper_model = WhisperModel(
-            "tiny.en", 
-            device="cpu", 
-            compute_type="int8",
-            cpu_threads=2,
-            num_workers=1
-        )
-        print("Whisper model loaded successfully.")
-        return whisper_model
-    except Exception as e:
-        print(f"Warning: Faster Whisper failed to load: {e}")
-        return None
-
-def run_whisper(path):
-    model = get_whisper_model()
-    if not model:
-        return "Error: model not loaded", "en", 0
-    segments, info = model.transcribe(
-        path,
-        beam_size=1,
-        language="en",
-        vad_filter=False,
-        condition_on_previous_text=False,
-    )
-    transcript = " ".join(segment.text.strip() for segment in segments).strip()
-    return transcript, info.language, info.duration
-
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    model = get_whisper_model()
-    if model is None:
-        raise HTTPException(status_code=500, detail="Transcription service not available")
-    
     # Validation
     MAX_SIZE = 10 * 1024 * 1024 # 10MB
     content = await file.read()
@@ -124,11 +82,24 @@ async def transcribe_audio(file: UploadFile = File(...)):
             tmp.write(content)
             tmp_path = tmp.name
 
-        # Run in thread pool to avoid blocking the event loop
         start_time = time.perf_counter()
-        transcript, language, duration = await run_in_threadpool(run_whisper, tmp_path)
+        
+        from interviewer import get_llm_client
+        client = get_llm_client()
+        
+        with open(tmp_path, "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=audio_file,
+                response_format="verbose_json"
+            )
+            
+        transcript = transcription.text
+        language = transcription.language if hasattr(transcription, "language") else "en"
+        duration = transcription.duration if hasattr(transcription, "duration") else 0.0
+
         end_time = time.perf_counter()
-        print(f"[STT] Transcribed {duration:.2f}s audio in {end_time - start_time:.2f}s")
+        print(f"[STT] Transcribed audio in {end_time - start_time:.2f}s")
 
         # Cleanup
         os.remove(tmp_path)
@@ -263,95 +234,6 @@ def get_ip(request: Request):
         client_ip = request.client.host
     return {"ip": client_ip}
 
-import io
-import wave
-from google import genai as new_genai
-from google.genai import types as new_types
-
-
-import struct
-
-def parse_audio_mime_type(mime_type: str) -> dict:
-    bits_per_sample = 16
-    rate = 24000
-    parts = mime_type.split(";")
-    for param in parts:
-        param = param.strip()
-        if param.lower().startswith("rate="):
-            try:
-                rate = int(param.split("=", 1)[1])
-            except: pass
-        elif param.startswith("audio/L"):
-            try:
-                bits_per_sample = int(param.split("L", 1)[1])
-            except: pass
-    return {"bits_per_sample": bits_per_sample, "rate": rate}
-
-def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
-    parameters = parse_audio_mime_type(mime_type)
-    bits_per_sample = parameters["bits_per_sample"]
-    sample_rate = parameters["rate"]
-    num_channels = 1
-    data_size = len(audio_data)
-    bytes_per_sample = bits_per_sample // 8
-    block_align = num_channels * bytes_per_sample
-    byte_rate = sample_rate * block_align
-    chunk_size = 36 + data_size
-    
-    header = struct.pack(
-        "<4sI4s4sIHHIIHH4sI",
-        b"RIFF", chunk_size, b"WAVE", b"fmt ", 16, 1,
-        num_channels, sample_rate, byte_rate, block_align,
-        bits_per_sample, b"data", data_size
-    )
-    return header + audio_data
-
-@app.post("/api/tts")
-async def generate_tts(request: Request):
-    try:
-        data = await request.json()
-        text = data.get("text", "")
-        if not text:
-            return JSONResponse(status_code=400, content={"error": "No text provided"})
-            
-        print(f"Generating TTS (Zephyr) for: {text[:50]}...")
-        
-        api_key = os.getenv("GEMINI_API_KEY")
-        client = new_genai.Client(api_key=api_key)
-        
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-tts-preview",
-            contents=text,
-            config=new_types.GenerateContentConfig(
-                response_modalities=["audio"],
-                speech_config=new_types.SpeechConfig(
-                    voice_config=new_types.VoiceConfig(
-                        prebuilt_voice_config=new_types.PrebuiltVoiceConfig(
-                            voice_name="Zephyr"
-                        )
-                    )
-                ),
-            )
-        )
-        
-        if not response.candidates or not response.candidates[0].content.parts:
-            return JSONResponse(status_code=500, content={"error": "No audio generated"})
-
-        part = response.candidates[0].content.parts[0]
-        if not part.inline_data:
-            return JSONResponse(status_code=500, content={"error": "No inline data"})
-
-        audio_bytes = part.inline_data.data
-        mime_type = part.inline_data.mime_type or "audio/L16;rate=24000"
-        
-        wav_data = convert_to_wav(audio_bytes, mime_type)
-        b64_audio = base64.b64encode(wav_data).decode('utf-8')
-            
-        return {"audio": b64_audio, "format": "wav"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/health/db")
 def health_db():
@@ -428,7 +310,7 @@ async def chat(req: ChatRequest):
         async def stream_generator():
             try:
                 full_response = ""
-                for chunk in call_gemini_stream(system_prompt, req.candidate_message):
+                for chunk in call_llm_stream(system_prompt, req.candidate_message):
                     full_response += chunk
                     yield f"data: {json.dumps({'text': chunk})}\n\n"
                 
@@ -436,7 +318,7 @@ async def chat(req: ChatRequest):
                 yield f"data: {json.dumps({'is_complete': is_complete})}\n\n"
             except Exception as e:
                 error_msg = str(e)
-                print(f"Gemini stream error: {error_msg}")
+                print(f"LLM stream error: {error_msg}")
                 if "429" in error_msg or "quota" in error_msg.lower():
                     yield f"data: {json.dumps({'text': 'I need a moment... the AI service is temporarily busy. Please try again in a few seconds.'})}\n\n"
                 else:
@@ -445,12 +327,12 @@ async def chat(req: ChatRequest):
             
         return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
-    # Call Gemini (non-streaming fallback)
+    # Call LLM (non-streaming fallback)
     try:
-        reply = call_gemini(system_prompt, req.candidate_message)
+        reply = call_llm(system_prompt, req.candidate_message)
     except Exception as e:
         error_msg = str(e)
-        print(f"Gemini error: {error_msg}")
+        print(f"LLM error: {error_msg}")
         if "429" in error_msg or "quota" in error_msg.lower():
             raise HTTPException(status_code=503, detail="AI service is temporarily busy. Please try again in a few seconds.")
         raise HTTPException(status_code=500, detail=f"AI service error: {error_msg}")

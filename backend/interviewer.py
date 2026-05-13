@@ -43,50 +43,63 @@ CONVERSATION SO FAR:
 {history}
 """
 
-from google import genai
-from google.genai import types
+from openai import OpenAI
+import os
 
-_gemini_client = None
+_llm_client = None
 
 def get_llm_client():
-    global _gemini_client
-    if _gemini_client is None:
-        api_key = os.getenv("GEMINI_API_KEY")
-        _gemini_client = genai.Client(api_key=api_key)
-    return _gemini_client
+    global _llm_client
+    if _llm_client is None:
+        base_url = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+        api_key = os.getenv("LLM_API_KEY")
+        if not api_key:
+             api_key = os.getenv("GROQ_API_KEY") # Fallback
+        _llm_client = OpenAI(base_url=base_url, api_key=api_key)
+    return _llm_client
 
-def call_gemini(system_prompt: str, user_message: str) -> str:
-    """LLM call using google.genai SDK."""
+def get_model():
+    return os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+
+def call_llm(system_prompt: str, user_message: str, response_format=None) -> str:
+    """LLM call using Groq via OpenAI SDK."""
     try:
         client = get_llm_client()
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-            )
-        )
-        return response.text.strip()
+        kwargs = {
+            "model": get_model(),
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+        }
+        if response_format:
+            kwargs["response_format"] = response_format
+            
+        response = client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Gemini API Error: {e}")
+        print(f"LLM API Error: {e}")
         raise
 
-def call_gemini_stream(system_prompt: str, user_message: str):
-    """LLM stream using google.genai SDK."""
+def call_llm_stream(system_prompt: str, user_message: str):
+    """LLM stream using Groq via OpenAI SDK."""
     try:
         client = get_llm_client()
-        response_stream = client.models.generate_content_stream(
-            model="gemini-3-flash-preview",
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-            )
+        response_stream = client.chat.completions.create(
+            model=get_model(),
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            stream=True
         )
         for chunk in response_stream:
-            if chunk.text:
-                yield chunk.text
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta and delta.content:
+                    yield delta.content
     except Exception as e:
-        print(f"Gemini API Stream Error: {e}")
+        print(f"LLM API Stream Error: {e}")
         raise
 
 def detect_phase_transition(history: List[Dict[str, str]], current_phase: str) -> str:

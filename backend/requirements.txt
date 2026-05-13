@@ -1,13 +1,9 @@
 fastapi
 uvicorn
 pydantic
-google-generativeai
-google-genai
 psycopg2-binary
 python-dotenv
 supabase
-ollama
 openai
 resend
-faster-whisper
 python-multipart

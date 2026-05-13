@@ -1,4 +1,4 @@
-from interviewer import call_gemini
+from interviewer import call_llm
 import os
 import json
 from typing import Dict, Any, List
@@ -51,7 +51,7 @@ IMPORTANT: Return ONLY the JSON object. Do not include any explanations before o
 """
 
     try:
-        reply = call_gemini(system_prompt, user_message)
+        reply = call_llm(system_prompt, user_message, response_format={"type": "json_object"})
         
         raw = reply.strip()
         if raw.startswith("```json"): raw = raw[7:]
