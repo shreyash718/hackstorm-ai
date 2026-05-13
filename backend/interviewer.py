@@ -1,8 +1,6 @@
 import os
 import time
 from typing import List, Dict, Any
-import ollama
-import openai
 
 def build_system_prompt(problem: Dict[str, Any], phase: str, code: str, history: str) -> str:
     return f"""
